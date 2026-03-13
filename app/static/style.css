@@ -1,0 +1,38 @@
+.nav-btn {
+    @apply flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors text-indigo-100 hover:bg-indigo-800 hover:text-white mb-1;
+}
+.nav-btn.active {
+    background-color: white !important;
+    color: #312e81 !important; /* indigo-900 */
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+.view-section {
+    display: none;
+}
+.view-section.active {
+    display: block;
+    animation: fadeIn 0.4s ease-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Base custom classes to mimic Tailwind apply for standalone files */
+.nav-btn {
+    display: flex;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    border-radius: 0.5rem;
+    transition-property: color, background-color;
+    transition-duration: 150ms;
+    color: #e0e7ff; /* indigo-100 */
+    margin-bottom: 0.25rem;
+}
+.nav-btn:hover:not(.active) {
+    background-color: #3730a3; /* indigo-800 */
+    color: #ffffff;
+}
