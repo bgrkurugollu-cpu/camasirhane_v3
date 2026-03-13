@@ -349,9 +349,11 @@ async function fetchUserInfo() {
             
             // Adjust UI for role
             if (user.role === 'admin') {
+                document.getElementById('header-role').innerText = "YÖNETİCİ";
                 document.getElementById('admin-menu-header').classList.remove('hidden');
                 document.getElementById('admin-menu-teslim').classList.remove('hidden');
             } else {
+                document.getElementById('header-role').innerText = "PERSONEL";
                 document.getElementById('admin-menu-header').classList.add('hidden');
                 document.getElementById('admin-menu-teslim').classList.add('hidden');
             }
