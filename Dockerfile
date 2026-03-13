@@ -10,4 +10,4 @@ COPY ./app /code/app
 COPY ./docs /code/docs
 RUN mkdir -p /code/data
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8085"]

@@ -11,7 +11,7 @@ Sistemi ayağa kaldırmak için:
 docker-compose up -d --build
 ```
 
-Bu kod bloğu, `Dockerfile` içindeki kuralları okuyarak bir python ortamı oluşturur, kütüphaneleri yükler (`requirements.txt`) ve ana uygulamayı (`uvicorn app.main:app`) `0.0.0.0:8000` portunda yayına açar. `data` klasörüne de SQLite veritabanı bağlar.
+Bu kod bloğu, `Dockerfile` içindeki kuralları okuyarak bir python ortamı oluşturur, kütüphaneleri yükler (`requirements.txt`) ve ana uygulamayı (`uvicorn app.main:app`) `0.0.0.0:8085` portunda yayına açar. `data` klasörüne de SQLite veritabanı bağlar.
 
 ## Geliştirme Standartları
 

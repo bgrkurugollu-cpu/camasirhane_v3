@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  web:
+    build: .
+    ports:
+      - "8085:8085"
+    volumes:
+      - ./app:/code/app
+      - data_volume:/code/data
+    environment:
+      - TZ=Europe/Istanbul
+
+volumes:
+  data_volume:
