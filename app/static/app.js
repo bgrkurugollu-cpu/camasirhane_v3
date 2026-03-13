@@ -420,10 +420,21 @@ function showLoginModal() {
     document.getElementById('login-modal').classList.remove('hidden');
 }
 
-function toggleUserMenu() {
+function toggleUserMenu(e) {
+    if (e) e.stopPropagation();
     const dropdown = document.getElementById('user-dropdown');
-    dropdown.classList.toggle('hidden');
+    if (dropdown) {
+        dropdown.classList.toggle('hidden');
+    }
 }
+
+// Dropdown'u dışarıya veya menü öğelerine tıklayınca kapatmak için
+document.addEventListener('click', function(event) {
+    const dropdown = document.getElementById('user-dropdown');
+    if (dropdown && !dropdown.classList.contains('hidden')) {
+        dropdown.classList.add('hidden');
+    }
+});
 
 function logout(e) {
     if (e) e.preventDefault();
