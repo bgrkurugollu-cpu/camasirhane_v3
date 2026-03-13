@@ -1,6 +1,6 @@
 # LaundroStar - Çamaşırhane Otomasyon Sistemi
 
-Yıldız Tech tarafından geliştirilen LaundroStar, fabrikaların ve işletmelerin çamaşırhane süreçlerini otomatikleştirip, personellerin (işçilerin) kıyafetlerinin temizlik durumunu takip etmeyi sağlayan Dockerize edilmiş modern bir web uygulamasıdır.
+Yıldız Tech tarafından geliştirilen LaundroStar, fabrikaların ve işletmelerin çamaşırhane süreçlerini otomatikleştirip, personellerin (işçilerin) kıyafetlerinin temizlik durumunu takip etmeyi sağlayan Dockerize edilmiş modern bir web uygulamasıdır. *(Geliştirme: Buğra Kurugöllü / @bugrakurugollu)*
 
 ## Mimari ve Teknoloji Yığını
 Platform aşağıdaki teknolojiler üzerine kurgulanmıştır:
