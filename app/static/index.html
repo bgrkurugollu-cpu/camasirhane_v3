@@ -76,7 +76,7 @@
                     <i class="fa-solid fa-chevron-down text-xs text-gray-400 group-hover:text-gray-600 transition-colors"></i>
                     <div id="user-dropdown" class="hidden absolute right-0 mt-12 w-48 bg-white rounded-md shadow-lg py-1 border border-gray-100 z-[60]">
                         <button onclick="showProfile()" class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors">
-                            <i class="fa-solid fa-user-pen mr-2"></i>Kullanıcı Profili
+                            <i class="fa-solid fa-user-pen mr-2"></i>Profil Yönetimi
                         </button>
                         <button onclick="logout()" class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors text-red-600">
                             <i class="fa-solid fa-sign-out-alt mr-2"></i>Çıkış Yap
@@ -148,7 +148,7 @@
             <div id="profile-view" class="view-section hidden max-w-4xl mx-auto animate-fade-in">
                 <div class="mb-6 flex justify-between items-end">
                     <div>
-                        <h2 class="text-2xl font-bold text-gray-800">Kullanıcı Profili</h2>
+                        <h2 class="text-2xl font-bold text-gray-800">Profil Yönetimi</h2>
                         <p class="text-sm text-gray-500 mt-1">Kişisel bilgilerinizi buradan güncelleyebilirsiniz.</p>
                     </div>
                 </div>
@@ -156,11 +156,18 @@
                 <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
                     <form id="profile-form" onsubmit="handleProfileUpdate(event)">
                         <div class="p-6 border-b border-gray-100 bg-gray-50 flex items-center space-x-6">
-                            <div class="relative w-24 h-24 rounded-full bg-indigo-100 border-4 border-white shadow-sm flex items-center justify-center overflow-hidden">
+                            <div class="relative w-24 h-24 rounded-full bg-indigo-100 border-4 border-white shadow-sm flex items-center justify-center overflow-hidden group cursor-pointer" onclick="document.getElementById('profile-photo-upload').click()">
                                 <img id="profile-photo-preview" src="" alt="Profil Fotoğrafı" class="object-cover w-full h-full hidden">
                                 <i id="profile-photo-icon" class="fa-solid fa-user text-4xl text-indigo-400"></i>
-                                <!-- A future step could add an actual <input type="file"> here -->
+                                <!-- Overlay for hover -->
+                                <div class="absolute inset-0 bg-black/40 flex flex-col justify-center items-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <i class="fa-solid fa-camera text-white text-xl"></i>
+                                    <span class="text-white text-[10px] font-bold mt-1">Yükle (PNG)</span>
+                                </div>
                             </div>
+                            <!-- Hidden input -->
+                            <input type="file" id="profile-photo-upload" accept="image/png" class="hidden" onchange="handlePhotoSelect(event)">
+                            
                             <div>
                                 <h3 id="profile-display-name" class="text-xl font-bold text-gray-800">Kullanıcı Adı</h3>
                                 <p id="profile-display-role" class="text-sm font-medium text-indigo-600 bg-indigo-50 px-3 py-1 rounded-full inline-block mt-1">Role</p>

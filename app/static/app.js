@@ -467,6 +467,57 @@ async function showProfile() {
     }
 }
 
+async function handlePhotoSelect(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    if (file.type !== "image/png") {
+        showToast("Sadece PNG formatında fotoğraf yükleyebilirsiniz!", true);
+        return;
+    }
+    
+    if (file.size > 2 * 1024 * 1024) {
+        showToast("Dosya boyutu 2MB'den küçük olmalıdır!", true);
+        return;
+    }
+    
+    const formData = new FormData();
+    formData.append("file", file);
+    
+    try {
+        const token = localStorage.getItem('token');
+        const res = await fetch('/api/users/me/photo', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            },
+            body: formData
+        });
+        
+        if (res.ok) {
+            const data = await res.json();
+            showToast("Profil fotoğrafı başarıyla güncellendi!");
+            
+            if (data.profile_photo) {
+                const imgUrl = data.profile_photo + "?t=" + new Date().getTime(); // Prevent caching
+                document.getElementById('profile-photo-preview').src = imgUrl;
+                document.getElementById('profile-photo-preview').classList.remove('hidden');
+                document.getElementById('profile-photo-icon').classList.add('hidden');
+                
+                document.getElementById('header-avatar-img').src = imgUrl;
+                document.getElementById('header-avatar-img').classList.remove('hidden');
+                document.getElementById('header-avatar-icon').classList.add('hidden');
+            }
+        } else {
+            const errorData = await res.json();
+            showToast("Hata: " + errorData.detail, true);
+        }
+    } catch (err) {
+        console.error(err);
+        showToast("Fotoğraf yüklenirken bağlantı hatası oluştu", true);
+    }
+}
+
 async function handleProfileUpdate(e) {
     e.preventDefault();
     

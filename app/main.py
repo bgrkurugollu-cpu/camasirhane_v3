@@ -1,9 +1,11 @@
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, UploadFile, File
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from datetime import datetime, date, timezone, timedelta
 from typing import List
+import os
+import uuid
 
 from fastapi.security import OAuth2PasswordRequestForm
 from . import models, schemas, database, security
@@ -51,6 +53,33 @@ def update_user_me(data: schemas.UserProfileUpdate, db: Session = Depends(databa
         
     db.commit()
     db.refresh(current_user)
+    return current_user
+
+@app.post("/api/users/me/photo", response_model=schemas.UserResponse)
+async def upload_profile_photo(
+    file: UploadFile = File(...),
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(security.get_current_user)
+):
+    """Kullanıcının profil fotoğrafını günceller. Sadece PNG formatı kabul edilir."""
+    if file.content_type != "image/png":
+        raise HTTPException(status_code=400, detail="Sadece .png formatında resim yükleyebilirsiniz.")
+    
+    contents = await file.read()
+    if len(contents) > 2 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="Dosya boyutu çok büyük! Maksimum 2MB yükleyebilirsiniz.")
+    
+    os.makedirs("app/static/avatars", exist_ok=True)
+    filename = f"avatar_{current_user.id}_{uuid.uuid4().hex[:8]}.png"
+    filepath = f"app/static/avatars/{filename}"
+    
+    with open(filepath, "wb") as f:
+        f.write(contents)
+        
+    current_user.profile_photo = f"/static/avatars/{filename}"
+    db.commit()
+    db.refresh(current_user)
+    
     return current_user
 
 @app.get("/api/users", response_model=List[schemas.UserResponse])
