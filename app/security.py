@@ -1,3 +1,4 @@
+import os
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 from jose import JWTError, jwt
@@ -8,10 +9,10 @@ from sqlalchemy.orm import Session
 
 from . import models, database
 
-# Config
-SECRET_KEY = "my-super-secret-laundry-key-for-mvp"  # MVP için statik
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 1 gün
+# Config – ortam değişkenlerinden okunur, SECRET_KEY yoksa uygulama başlamaz
+SECRET_KEY = os.environ["SECRET_KEY"]
+ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "1440"))
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/token")

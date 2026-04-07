@@ -2,6 +2,24 @@ from pydantic import BaseModel
 from datetime import datetime
 from typing import Optional
 
+class KiyafetCreate(BaseModel):
+    rfid_tag: str
+    sicil_numarasi: str
+    ad: Optional[str] = None
+    soyad: Optional[str] = None
+    cinsiyet: Optional[str] = None
+
+class KiyafetResponse(BaseModel):
+    rfid_tag: str
+    sicil_numarasi: str
+
+    class Config:
+        from_attributes = True
+
+class TeslimRequest(BaseModel):
+    islem_id: int
+    sicil_numarasi: str
+
 class IslemRequest(BaseModel):
     """
     Frontend'den yeni bir işlem kaydı oluşturulurken beklenen JSON şemasıdır.
@@ -9,13 +27,14 @@ class IslemRequest(BaseModel):
     """
     islem_tipi: str
     rfid_tag: str
-    sicil_numarasi: str
+    sicil_numarasi: Optional[str] = None
 
 class IslemResponse(BaseModel):
     islem_id: int
     rfid_tag: Optional[str]
     sicil_numarasi: Optional[str]
     zaman_damgasi: datetime
+    raf_id: Optional[int] = None
 
 class IslemOnayRequest(BaseModel):
     islem_id: int
@@ -56,12 +75,33 @@ class UserResponse(BaseModel):
     class Config:
         from_attributes = True
 
+class UserCreate(BaseModel):
+    username: str
+    password: str
+    role: str
+    title: Optional[str] = None
+    company: Optional[str] = None
+    email: Optional[str] = None
+    phone: Optional[str] = None
+
 class UserProfileUpdate(BaseModel):
     email: Optional[str] = None
     phone: Optional[str] = None
     title: Optional[str] = None
     company: Optional[str] = None
     password: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+class AuditLogResponse(BaseModel):
+    id: int
+    timestamp: datetime
+    username: Optional[str] = None
+    action: str
+    detail: Optional[str] = None
+    ip_address: Optional[str] = None
+    status: str
 
     class Config:
         from_attributes = True

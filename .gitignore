@@ -1,0 +1,9 @@
+.env
+nginx/certs/
+__pycache__/
+*.pyc
+*.pyo
+data/
+*.db
+.DS_Store
+app/static/avatars/

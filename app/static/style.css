@@ -1,3 +1,11 @@
+/* Sidebar nav scrollbar gizle */
+#sidebar nav {
+    scrollbar-width: none; /* Firefox */
+}
+#sidebar nav::-webkit-scrollbar {
+    display: none; /* Chrome, Safari */
+}
+
 .nav-btn {
     @apply flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors text-indigo-100 hover:bg-indigo-800 hover:text-white mb-1;
 }
@@ -35,4 +43,51 @@
 .nav-btn:hover:not(.active) {
     background-color: #3730a3; /* indigo-800 */
     color: #ffffff;
+}
+
+/* Raf Simülasyonu */
+.rack-tab {
+    background-color: #f3f4f6;
+    color: #6b7280;
+    border: 2px solid transparent;
+}
+.rack-tab:hover {
+    background-color: #e0e7ff;
+    color: #4338ca;
+}
+.rack-tab.active {
+    background-color: #4338ca;
+    color: #ffffff;
+    box-shadow: 0 2px 8px rgba(67, 56, 202, 0.3);
+}
+
+.rack-cell {
+    height: 5rem;
+    border-radius: 0.5rem;
+    border: 2px solid;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+    min-width: 5rem;
+}
+.rack-cell:hover {
+    transform: scale(1.05);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    z-index: 10;
+}
+.rack-cell.empty {
+    background-color: #ecfdf5;
+    border-color: #a7f3d0;
+}
+.rack-cell.partial {
+    background-color: #fffbeb;
+    border-color: #fde68a;
+}
+.rack-cell.full {
+    background-color: #fef2f2;
+    border-color: #fca5a5;
 }

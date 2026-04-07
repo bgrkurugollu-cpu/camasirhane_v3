@@ -7,6 +7,20 @@ def get_now():
     """UTC zaman diliminde şu anki zamanı döndürür."""
     return datetime.datetime.now(datetime.timezone.utc)
 
+class AuditLog(Base):
+    """
+    Sistemdeki tüm kritik işlemlerin kim tarafından, ne zaman, hangi IP'den
+    yapıldığını ve başarılı olup olmadığını kaydeden audit log tablosudur.
+    """
+    __tablename__ = "audit_logs"
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    timestamp = Column(DateTime(timezone=True), default=get_now, index=True)
+    username = Column(String, index=True, nullable=True)    # İşlemi yapan kullanıcı
+    action = Column(String, index=True)                     # Olay tipi (LOGIN_SUCCESS, KIRLI_GIRIS, vb.)
+    detail = Column(String, nullable=True)                  # Ek bilgi (RFID, sicil no, hedef kullanıcı)
+    ip_address = Column(String, nullable=True)              # İstemci IP'si
+    status = Column(String, default="success")              # 'success' veya 'fail'
+
 class User(Base):
     """
     Sistemdeki kullanıcıları temsil eden veritabanı tablosudur.
@@ -34,6 +48,7 @@ class Calisan(Base):
     sicil_numarasi = Column(String, primary_key=True, index=True)
     ad = Column(String, index=True)
     soyad = Column(String, index=True)
+    cinsiyet = Column(String, nullable=True)  # 'K' = Kadın, 'E' = Erkek
 
 class Kiyafet(Base):
     """
@@ -52,18 +67,20 @@ class Kirli_Kiyafet(Base):
     islem_id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     rfid_tag = Column(String, index=True, nullable=True) # Hangi kıyafet
     sicil_numarasi = Column(String, index=True, nullable=True) # Kime ait
-    zaman_damgasi = Column(DateTime, default=get_now)
+    zaman_damgasi = Column(DateTime(timezone=True), default=get_now)
 
 class Temiz_Kiyafet(Base):
     __tablename__ = "temiz_kiyafetler"
     islem_id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     rfid_tag = Column(String, index=True, nullable=True)
     sicil_numarasi = Column(String, index=True, nullable=True)
-    zaman_damgasi = Column(DateTime, default=get_now)
+    zaman_damgasi = Column(DateTime(timezone=True), default=get_now)
+    raf_id = Column(String, nullable=True, index=True)  # Ör: A11, B35, H72
 
 class Teslim_Edilen(Base):
     __tablename__ = "teslim_edilenler"
     islem_id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     rfid_tag = Column(String, index=True, nullable=True)
     sicil_numarasi = Column(String, index=True, nullable=True)
-    zaman_damgasi = Column(DateTime, default=get_now)
+    zaman_damgasi = Column(DateTime(timezone=True), default=get_now)
+    raf_id = Column(String, nullable=True, index=True)
