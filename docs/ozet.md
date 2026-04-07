@@ -57,8 +57,6 @@ Atama algoritması gözleri kapasite dolma sırasına göre doldurur; taşma olm
 - Üzerine gelindiğinde personel listesi popup olarak görüntülenir
 - Sicil veya ad soyad ile arama; sonuç bulunan göze otomatik yönlendirme
 
-### RFID Oku Simülasyonu
-Kirli kıyafet girişinde "RFID Oku" butonuna basıldığında sistem rastgele 10'a kadar personel tarar ve formu hazırlar. Gerçek RFID donanımıyla entegre çalışacak şekilde tasarlanmıştır.
 
 ### Tablo Araması
 Kirli bekleyenler, temizlenenler, teslim edilecekler, personel ve RFID listelerinde anlık metin araması.
