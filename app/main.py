@@ -2,6 +2,7 @@ from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
+from sqlalchemy import func, or_
 from datetime import datetime, date, timezone, timedelta
 from typing import List, Optional
 import os
@@ -336,7 +337,6 @@ def get_compartment_capacity(floor: int) -> int:
 
 def assign_shelf(db: Session, cinsiyet: Optional[str] = None) -> Optional[str]:
     """Cinsiyete göre raf atar. Kadın → E rafı, Erkek → A-D,F-H rafları."""
-    from sqlalchemy import func
     occupancy = db.query(
         models.Temiz_Kiyafet.raf_id,
         func.count(models.Temiz_Kiyafet.islem_id)
@@ -686,7 +686,6 @@ def get_stats(db: Session = Depends(database.get_db), current_user: models.User 
 @app.get("/api/stats/raflar", response_model=dict)
 def get_raf_stats(db: Session = Depends(database.get_db), current_user: models.User = Depends(security.get_current_user)):
     """Tüm rafların bölme bazında doluluk durumunu döndürür."""
-    from sqlalchemy import func
     occupancy = db.query(
         models.Temiz_Kiyafet.raf_id,
         func.count(models.Temiz_Kiyafet.islem_id)
@@ -798,7 +797,14 @@ def get_stats_history(period: str = "weekly", db: Session = Depends(database.get
 # ---------------------------------------------------------------------------
 
 @app.get("/api/tablo/{islem_tipi}")
-def get_tablo(islem_tipi: str, db: Session = Depends(database.get_db), current_user: models.User = Depends(security.get_current_user)):
+def get_tablo(
+    islem_tipi: str,
+    q: Optional[str] = None,
+    limit: int = 50,
+    offset: int = 0,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(security.get_current_user)
+):
     if islem_tipi in ['teslim', 'kiyafet'] and current_user.role != 'admin':
         raise HTTPException(status_code=403, detail="Sadece admin geçmiş kayıtları görebilir.")
 
@@ -830,23 +836,37 @@ def get_tablo(islem_tipi: str, db: Session = Depends(database.get_db), current_u
             result.append(item)
         return result
     elif islem_tipi == 'kiyafet':
-        rows = (
+        query = (
             db.query(models.Kiyafet, models.Calisan)
             .outerjoin(models.Calisan, models.Kiyafet.sicil_numarasi == models.Calisan.sicil_numarasi)
-            .all()
         )
-        return [
-            {
-                "rfid_tag": k.rfid_tag,
-                "sicil_numarasi": k.sicil_numarasi,
-                "ad_soyad": f"{c.ad} {c.soyad}" if c else "-"
-            }
-            for k, c in rows
-        ]
+        if q and q.strip():
+            term = f"%{q.strip()}%"
+            query = query.filter(
+                or_(
+                    models.Kiyafet.rfid_tag.ilike(term),
+                    models.Kiyafet.sicil_numarasi.ilike(term),
+                    models.Calisan.ad.ilike(term),
+                    models.Calisan.soyad.ilike(term),
+                )
+            )
+        total = query.count()
+        rows = query.order_by(models.Kiyafet.rfid_tag).offset(offset).limit(limit).all()
+        return {
+            "total": total,
+            "offset": offset,
+            "limit": limit,
+            "data": [
+                {
+                    "rfid_tag": k.rfid_tag,
+                    "sicil_numarasi": k.sicil_numarasi,
+                    "ad_soyad": f"{c.ad} {c.soyad}" if c else "-"
+                }
+                for k, c in rows
+            ]
+        }
     else:
         raise HTTPException(status_code=400, detail="Geçersiz işlem tipi")
-    
-    return kayitlar
 
 # ---------------------------------------------------------------------------
 # Audit Logs (Sadece Admin)

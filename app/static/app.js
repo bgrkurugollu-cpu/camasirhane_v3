@@ -479,6 +479,7 @@ function renderShelfChart(data) {
 }
 
 async function setupTableView(type) {
+    _currentTabloType = type;
     const view = document.getElementById('tablo-view');
     view.classList.add('active');
     resetTableSearch();
@@ -522,6 +523,11 @@ async function setupTableView(type) {
     tbody.innerHTML = '<tr><td colspan="5" class="text-center py-8"><i class="fas fa-spinner fa-spin text-2xl text-indigo-500"></i></td></tr>';
 
     try {
+        if (type === 'kiyafet') {
+            await loadKiyafetPage(0, '');
+            return;
+        }
+
         const res = await fetchWithAuth(`/api/tablo/${type}`);
         const data = await res.json();
 
@@ -531,23 +537,7 @@ async function setupTableView(type) {
         }
 
         tbody.innerHTML = data.map(row => {
-            if (type === 'kiyafet') {
-                return `
-                <tr class="hover:bg-gray-50 transition-colors">
-                    <td class="py-4 px-6 border-b border-gray-100 font-medium whitespace-nowrap">${row.rfid_tag || '-'}</td>
-                    <td class="py-4 px-6 border-b border-gray-100"><span class="bg-indigo-100 text-indigo-800 px-2 py-1 rounded text-xs font-bold border border-indigo-200">${row.sicil_numarasi || '-'}</span></td>
-                    <td class="py-4 px-6 border-b border-gray-100 whitespace-nowrap">${row.ad_soyad || '-'}</td>
-                    <td class="py-4 px-6 text-right border-b border-gray-100 whitespace-nowrap">
-                        <button onclick="editKiyafet('${row.rfid_tag}', '${row.sicil_numarasi}')" class="text-blue-500 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-md text-sm font-medium mr-2 transition-colors">
-                            <i class="fas fa-edit"></i>
-                        </button>
-                        <button onclick="deleteKiyafet('${row.rfid_tag}')" class="text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-md text-sm font-medium transition-colors">
-                            <i class="fas fa-trash-alt"></i>
-                        </button>
-                    </td>
-                </tr>
-                `;
-            }
+            if (false) { // kiyafet artık loadKiyafetPage ile yükleniyor
 
             let actionBtn = '';
             let rafBadge = '';
@@ -1399,30 +1389,91 @@ function hideRackPopup() {
 // Tablo Arama
 // ---------------------------------------------------------------------------
 
-let _tabloAllRows = []; // tüm satırların cache'i
+let _currentTabloType = null;
+let _tabloSearchTimer = null;
+const KIYAFET_PAGE_SIZE = 50;
 
 function filterTable(query) {
-    const q = query.trim().toLowerCase();
+    if (_currentTabloType !== 'kiyafet') {
+        // Diğer tablolar için eski DOM filtresi yeterli (max 50 kayıt)
+        const q = query.trim().toLowerCase();
+        const tbody = document.getElementById('tablo-body');
+        const countEl = document.getElementById('tablo-search-count');
+        const rows = tbody.querySelectorAll('tr');
+        if (!rows.length) return;
+        let visible = 0;
+        rows.forEach(row => {
+            const text = row.innerText.toLowerCase();
+            const match = !q || text.includes(q);
+            row.style.display = match ? '' : 'none';
+            if (match) visible++;
+        });
+        if (q) { countEl.textContent = `${visible} sonuç`; countEl.classList.remove('hidden'); }
+        else { countEl.classList.add('hidden'); }
+        return;
+    }
+    // kiyafet tablosu: debounce + API
+    clearTimeout(_tabloSearchTimer);
+    _tabloSearchTimer = setTimeout(() => loadKiyafetPage(0, query.trim()), 300);
+}
+
+async function loadKiyafetPage(offset, q) {
     const tbody = document.getElementById('tablo-body');
     const countEl = document.getElementById('tablo-search-count');
-    const rows = tbody.querySelectorAll('tr');
+    const params = new URLSearchParams({ limit: KIYAFET_PAGE_SIZE, offset });
+    if (q) params.set('q', q);
 
-    if (!rows.length) return;
+    tbody.innerHTML = '<tr><td colspan="4" class="text-center py-6"><i class="fas fa-spinner fa-spin text-indigo-500 text-xl"></i></td></tr>';
 
-    let visible = 0;
-    rows.forEach(row => {
-        const text = row.innerText.toLowerCase();
-        const match = !q || text.includes(q);
-        row.style.display = match ? '' : 'none';
-        if (match) visible++;
-    });
+    const res = await fetchWithAuth(`/api/tablo/kiyafet?${params}`);
+    const json = await res.json();
+    const { total, data } = json;
 
-    if (q) {
-        countEl.textContent = `${visible} sonuç`;
-        countEl.classList.remove('hidden');
-    } else {
+    if (!data.length) {
+        tbody.innerHTML = '<tr><td colspan="4" class="text-center py-8 text-gray-500">Kayıt bulunamadı.</td></tr>';
         countEl.classList.add('hidden');
+        return;
     }
+
+    tbody.innerHTML = data.map(row => `
+        <tr class="hover:bg-gray-50 transition-colors">
+            <td class="py-4 px-6 border-b border-gray-100 font-medium whitespace-nowrap">${row.rfid_tag || '-'}</td>
+            <td class="py-4 px-6 border-b border-gray-100"><span class="bg-indigo-100 text-indigo-800 px-2 py-1 rounded text-xs font-bold border border-indigo-200">${row.sicil_numarasi || '-'}</span></td>
+            <td class="py-4 px-6 border-b border-gray-100 whitespace-nowrap">${row.ad_soyad || '-'}</td>
+            <td class="py-4 px-6 text-right border-b border-gray-100 whitespace-nowrap">
+                <button onclick="editKiyafet('${row.rfid_tag}', '${row.sicil_numarasi}')" class="text-blue-500 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-md text-sm font-medium mr-2 transition-colors"><i class="fas fa-edit"></i></button>
+                <button onclick="deleteKiyafet('${row.rfid_tag}')" class="text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-md text-sm font-medium transition-colors"><i class="fas fa-trash-alt"></i></button>
+            </td>
+        </tr>
+    `).join('');
+
+    // Sayfalama bilgisi
+    const showing = Math.min(offset + KIYAFET_PAGE_SIZE, total);
+    countEl.textContent = `${offset + 1}–${showing} / ${total} kayıt`;
+    countEl.classList.remove('hidden');
+
+    // Sayfalama kontrolleri
+    let pagerEl = document.getElementById('kiyafet-pager');
+    if (!pagerEl) {
+        pagerEl = document.createElement('div');
+        pagerEl.id = 'kiyafet-pager';
+        pagerEl.className = 'flex justify-between items-center px-6 py-3 border-t border-gray-100 text-sm';
+        document.getElementById('tablo-body').closest('table').parentElement.appendChild(pagerEl);
+    }
+    const prevDisabled = offset === 0 ? 'opacity-40 cursor-not-allowed' : 'hover:bg-gray-100 cursor-pointer';
+    const nextDisabled = showing >= total ? 'opacity-40 cursor-not-allowed' : 'hover:bg-gray-100 cursor-pointer';
+    const currentQ = document.getElementById('tablo-search')?.value.trim() || '';
+    pagerEl.innerHTML = `
+        <button class="px-3 py-1.5 rounded border border-gray-200 ${prevDisabled}"
+            ${offset === 0 ? 'disabled' : `onclick="loadKiyafetPage(${offset - KIYAFET_PAGE_SIZE}, '${currentQ.replace(/'/g,"\\'")}')"`}>
+            ← Önceki
+        </button>
+        <span class="text-gray-400">${Math.floor(offset/KIYAFET_PAGE_SIZE)+1} / ${Math.ceil(total/KIYAFET_PAGE_SIZE)} sayfa</span>
+        <button class="px-3 py-1.5 rounded border border-gray-200 ${nextDisabled}"
+            ${showing >= total ? 'disabled' : `onclick="loadKiyafetPage(${offset + KIYAFET_PAGE_SIZE}, '${currentQ.replace(/'/g,"\\'")}')"`}>
+            Sonraki →
+        </button>
+    `;
 }
 
 // Tablo yüklendiğinde arama kutusunu sıfırla
@@ -1431,6 +1482,8 @@ function resetTableSearch() {
     const countEl = document.getElementById('tablo-search-count');
     if (input) input.value = '';
     if (countEl) countEl.classList.add('hidden');
+    const pager = document.getElementById('kiyafet-pager');
+    if (pager) pager.remove();
 }
 
 // ---------------------------------------------------------------------------
