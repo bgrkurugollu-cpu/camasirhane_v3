@@ -67,16 +67,23 @@ function setupActionView(action) {
     const sicilInput = document.getElementById('sicil_numarasi');
     const kisiDetayContainer = document.getElementById('kisi_detay_container');
 
+    const rfidOkuContainer = document.getElementById('rfid-oku-container');
+    const rfidOkuSonuc = document.getElementById('rfid-oku-sonuc');
+
     if (action === 'kirli-giris') {
         cfg = { title: 'Kirli Kıyafet Girişi', type: 'kirli', bg: 'bg-red-500' };
         sicilContainer.classList.add('hidden');
         if (kisiDetayContainer) kisiDetayContainer.classList.add('hidden');
         sicilInput.required = false;
+        if (rfidOkuContainer) rfidOkuContainer.classList.remove('hidden');
+        if (rfidOkuSonuc) rfidOkuSonuc.classList.add('hidden');
     } else {
         cfg = { title: 'RFID Eşleştirme', type: 'eslestirme', bg: 'bg-indigo-500' };
         sicilContainer.classList.remove('hidden');
         if (kisiDetayContainer) kisiDetayContainer.classList.remove('hidden');
         sicilInput.required = true;
+        if (rfidOkuContainer) rfidOkuContainer.classList.add('hidden');
+        if (rfidOkuSonuc) rfidOkuSonuc.classList.add('hidden');
     }
 
     document.getElementById('page-title').innerText = cfg.title;
@@ -474,6 +481,7 @@ function renderShelfChart(data) {
 async function setupTableView(type) {
     const view = document.getElementById('tablo-view');
     view.classList.add('active');
+    resetTableSearch();
 
     const titles = { 
         'kirli': 'Kirli Bekleyenler (Onay)', 
@@ -1329,38 +1337,38 @@ function showRackPopup(event, rafId, count, capacity) {
     if (count >= capacity) { statusColor = 'red'; statusText = 'Dolu'; }
 
     let html = `
-        <div class="px-4 py-3 bg-gray-50 border-b border-gray-200 rounded-t-xl">
-            <div class="flex items-center justify-between">
+        <div class="px-3 py-2.5 bg-gray-50 border-b border-gray-200 rounded-t-xl flex items-center justify-between gap-3">
+            <div>
                 <span class="font-bold text-gray-800 text-sm">${rafId}</span>
-                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-${statusColor}-100 text-${statusColor}-700">${statusText}</span>
+                <span class="text-[11px] text-gray-400 ml-1.5">${count}/${capacity} kapasite</span>
             </div>
-            <div class="text-[11px] text-gray-500 mt-0.5">${count} / ${capacity} kapasite</div>
+            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-${statusColor}-100 text-${statusColor}-700 shrink-0">${statusText}</span>
         </div>
     `;
 
     if (items.length > 0) {
-        html += '<div class="p-3 space-y-2 max-h-60 overflow-y-auto">';
+        html += '<div class="p-2.5 space-y-1.5">';
         items.forEach((item, idx) => {
             const tarih = item.zaman_damgasi
                 ? new Date(item.zaman_damgasi).toLocaleString('tr-TR', { dateStyle: 'short', timeStyle: 'short' })
                 : '-';
             html += `
-                <div class="bg-gray-50 rounded-lg p-2.5 border border-gray-100 text-xs">
-                    <div class="flex justify-between items-center mb-1">
+                <div class="bg-white rounded-lg px-2.5 py-2 border border-gray-100 text-xs">
+                    <div class="flex justify-between items-center">
                         <span class="font-bold text-gray-800">${item.ad_soyad}</span>
-                        <span class="text-[10px] text-gray-400">#${idx + 1}</span>
+                        <span class="text-[10px] text-gray-300 ml-2 shrink-0">#${idx + 1}</span>
                     </div>
-                    <div class="grid grid-cols-2 gap-1 text-gray-500">
-                        <span><i class="fas fa-id-badge mr-1 text-indigo-400"></i>${item.sicil_numarasi}</span>
-                        <span><i class="fas fa-tag mr-1 text-indigo-400"></i>${item.rfid_tag}</span>
+                    <div class="flex items-center gap-3 text-gray-400 mt-0.5">
+                        <span><i class="fas fa-id-badge mr-1 text-indigo-300"></i>${item.sicil_numarasi}</span>
+                        <span><i class="fas fa-tag mr-1 text-indigo-300"></i>${item.rfid_tag}</span>
+                        <span class="ml-auto"><i class="fas fa-clock mr-1"></i>${tarih}</span>
                     </div>
-                    <div class="text-gray-400 mt-1"><i class="fas fa-clock mr-1"></i>${tarih}</div>
                 </div>
             `;
         });
         html += '</div>';
     } else {
-        html += '<div class="p-4 text-center text-xs text-gray-400"><i class="fas fa-inbox text-2xl mb-2 block text-gray-300"></i>Bu bölmede kıyafet yok</div>';
+        html += '<div class="px-3 py-3 text-center text-xs text-gray-400"><i class="fas fa-inbox mr-1 text-gray-300"></i>Bu bölmede kıyafet yok</div>';
     }
 
     popup.innerHTML = html;
@@ -1385,4 +1393,209 @@ function moveRackPopup(event) {
 
 function hideRackPopup() {
     document.getElementById('rack-popup').classList.add('hidden');
+}
+
+// ---------------------------------------------------------------------------
+// Tablo Arama
+// ---------------------------------------------------------------------------
+
+let _tabloAllRows = []; // tüm satırların cache'i
+
+function filterTable(query) {
+    const q = query.trim().toLowerCase();
+    const tbody = document.getElementById('tablo-body');
+    const countEl = document.getElementById('tablo-search-count');
+    const rows = tbody.querySelectorAll('tr');
+
+    if (!rows.length) return;
+
+    let visible = 0;
+    rows.forEach(row => {
+        const text = row.innerText.toLowerCase();
+        const match = !q || text.includes(q);
+        row.style.display = match ? '' : 'none';
+        if (match) visible++;
+    });
+
+    if (q) {
+        countEl.textContent = `${visible} sonuç`;
+        countEl.classList.remove('hidden');
+    } else {
+        countEl.classList.add('hidden');
+    }
+}
+
+// Tablo yüklendiğinde arama kutusunu sıfırla
+function resetTableSearch() {
+    const input = document.getElementById('tablo-search');
+    const countEl = document.getElementById('tablo-search-count');
+    if (input) input.value = '';
+    if (countEl) countEl.classList.add('hidden');
+}
+
+// ---------------------------------------------------------------------------
+// Raf Simülasyonu — Kişi/Sicil Arama
+// ---------------------------------------------------------------------------
+
+async function rafSearch(query) {
+    const q = query.trim().toLowerCase();
+    const resultEl = document.getElementById('raf-search-result');
+
+    if (!q) {
+        resultEl.classList.add('hidden');
+        resultEl.innerHTML = '';
+        // Highlight temizle
+        document.querySelectorAll('.rack-cell.search-highlight').forEach(el => {
+            el.classList.remove('search-highlight');
+        });
+        return;
+    }
+
+    // Tüm raf detaylarını tara — önce yüklenmemiş rafları çek
+    const LETTERS = ['A','B','C','D','E','F','G','H'];
+    const missing = LETTERS.filter(l => !rackDetailCache[l]);
+    if (missing.length) {
+        await Promise.all(missing.map(async l => {
+            const res = await fetchWithAuth(`/api/stats/raf-detay/${l}`);
+            if (res.ok) rackDetailCache[l] = await res.json();
+        }));
+    }
+
+    // Ara
+    const bulunanlar = [];
+    for (const letter of LETTERS) {
+        const rafData = rackDetailCache[letter] || {};
+        for (const [rafId, items] of Object.entries(rafData)) {
+            for (const item of items) {
+                const adSoyad = (item.ad_soyad || '').toLowerCase();
+                const sicil = (item.sicil_numarasi || '').toLowerCase();
+                const rfid = (item.rfid_tag || '').toLowerCase();
+                if (adSoyad.includes(q) || sicil.includes(q) || rfid.includes(q)) {
+                    bulunanlar.push({ ...item, rafId, rack: letter });
+                }
+            }
+        }
+    }
+
+    resultEl.classList.remove('hidden');
+
+    if (!bulunanlar.length) {
+        resultEl.innerHTML = `
+            <div class="flex items-center gap-2 text-sm text-gray-400">
+                <i class="fas fa-search-minus text-gray-300"></i>
+                <span>"<strong>${query}</strong>" ile eşleşen kayıt bulunamadı.</span>
+            </div>`;
+        return;
+    }
+
+    resultEl.innerHTML = `
+        <p class="text-xs font-semibold text-gray-500 mb-2">
+            <i class="fas fa-map-marker-alt text-indigo-400 mr-1"></i>${bulunanlar.length} kıyafet bulundu
+        </p>
+        <div class="space-y-2">
+            ${bulunanlar.map(item => {
+                const tarih = item.zaman_damgasi
+                    ? new Date(item.zaman_damgasi).toLocaleString('tr-TR', { dateStyle: 'short', timeStyle: 'short' })
+                    : '-';
+                const rackColor = item.rack === 'E' ? 'pink' : 'indigo';
+                return `
+                <div class="flex items-center justify-between bg-gray-50 rounded-xl px-4 py-3 border border-gray-100 cursor-pointer hover:border-indigo-300 hover:bg-indigo-50 transition-all"
+                     onclick="rafSearchGoTo('${item.rack}', '${item.rafId}')">
+                    <div>
+                        <div class="font-bold text-gray-800 text-sm">${item.ad_soyad}</div>
+                        <div class="flex items-center gap-3 text-xs text-gray-400 mt-0.5">
+                            <span><i class="fas fa-id-badge mr-1 text-indigo-300"></i>${item.sicil_numarasi}</span>
+                            <span><i class="fas fa-tag mr-1 text-indigo-300"></i>${item.rfid_tag}</span>
+                            <span><i class="fas fa-clock mr-1"></i>${tarih}</span>
+                        </div>
+                    </div>
+                    <div class="text-right ml-4 shrink-0">
+                        <span class="inline-flex items-center gap-1.5 bg-${rackColor}-100 text-${rackColor}-700 font-black text-sm px-3 py-1.5 rounded-lg border border-${rackColor}-200">
+                            <i class="fas fa-warehouse text-xs"></i>${item.rafId}
+                        </span>
+                        <div class="text-[10px] text-gray-400 mt-1">tıkla → rafa git</div>
+                    </div>
+                </div>`;
+            }).join('')}
+        </div>`;
+}
+
+async function rafSearchGoTo(rack, rafId) {
+    // Rafa geç ve ilgili bölmeyi vurgula
+    await selectRack(rack);
+
+    // Highlight
+    document.querySelectorAll('.rack-cell').forEach(el => el.classList.remove('search-highlight'));
+    const target = document.querySelector(`[data-raf-id="${rafId}"]`);
+    if (target) {
+        target.classList.add('search-highlight');
+        target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+}
+
+function rafSearchClear() {
+    const input = document.getElementById('raf-search-input');
+    if (input) { input.value = ''; rafSearch(''); }
+}
+
+// ---------------------------------------------------------------------------
+// RFID Oku — Kirli Sepeti Simülasyonu
+// ---------------------------------------------------------------------------
+
+async function rfidOku() {
+    const btn = document.querySelector('#rfid-oku-container button');
+    const sonucEl = document.getElementById('rfid-oku-sonuc');
+    const uyariEl = document.getElementById('rfid-oku-uyari');
+    const listeEl = document.getElementById('rfid-oku-liste');
+    const itemsEl = document.getElementById('rfid-oku-items');
+    const sayiEl  = document.getElementById('rfid-oku-sayi');
+    const kalanEl = document.getElementById('rfid-oku-kalan');
+
+    // Buton loading
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin text-xl"></i> Okunuyor...';
+
+    try {
+        const res = await fetchWithAuth('/api/islem/rfid-oku', { method: 'POST' });
+        const data = await res.json();
+
+        sonucEl.classList.remove('hidden');
+        uyariEl.classList.add('hidden');
+        listeEl.classList.add('hidden');
+
+        if (data.durum === 'bos') {
+            uyariEl.classList.remove('hidden');
+        } else {
+            listeEl.classList.remove('hidden');
+            sayiEl.textContent = data.eklenenler.length;
+            kalanEl.textContent = data.kalan_aday > 0
+                ? `${data.kalan_aday} kişi daha eklenebilir`
+                : 'Tüm kıyafetler tarandı';
+
+            const cinsiyetBadge = c => c === 'K'
+                ? '<span class="text-[10px] bg-pink-100 text-pink-600 px-1.5 py-0.5 rounded font-bold">K</span>'
+                : '<span class="text-[10px] bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded font-bold">E</span>';
+
+            itemsEl.innerHTML = data.eklenenler.map(item => {
+                const tarih = new Date(item.zaman_damgasi).toLocaleString('tr-TR', { dateStyle: 'short', timeStyle: 'short' });
+                return `
+                <div class="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2 border border-gray-100 text-xs">
+                    <div class="flex items-center gap-2">
+                        ${cinsiyetBadge(item.cinsiyet)}
+                        <span class="font-semibold text-gray-800">${item.ad_soyad}</span>
+                        <span class="text-gray-400 font-mono">${item.sicil_numarasi}</span>
+                    </div>
+                    <div class="flex items-center gap-2 text-gray-400">
+                        <span class="font-mono">${item.rfid_tag}</span>
+                        <span>${tarih}</span>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+    } catch (err) {
+        showToast('RFID okuma hatası!', true);
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-wifi text-xl"></i> RFID Oku';
+    }
 }

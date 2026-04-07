@@ -235,6 +235,26 @@
 
             <!-- Raf Simülasyonu View -->
             <div id="raf-simulasyon" class="view-section">
+
+                <!-- Kişi/Sicil Arama -->
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 px-4 py-3 mb-4">
+                    <div class="flex items-center gap-3">
+                        <div class="relative flex-1">
+                            <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
+                            <input type="text" id="raf-search-input"
+                                oninput="rafSearch(this.value)"
+                                placeholder="Ad soyad veya sicil numarası ile ara..."
+                                class="w-full pl-9 pr-4 py-2.5 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-400 text-sm transition-all">
+                        </div>
+                        <button onclick="rafSearchClear()"
+                            class="text-gray-400 hover:text-gray-600 px-2 py-2 rounded-lg hover:bg-gray-100 transition-colors shrink-0" title="Temizle">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <!-- Arama Sonucu -->
+                    <div id="raf-search-result" class="hidden mt-3 pt-3 border-t border-gray-100"></div>
+                </div>
+
                 <!-- Raf Seçici Tablar -->
                 <div class="flex flex-wrap gap-2 mb-6">
                     <button onclick="selectRack('A')" class="rack-tab active px-5 py-2.5 rounded-lg text-sm font-bold transition-all" data-rack="A">A Rafı</button>
@@ -286,7 +306,7 @@
                 </div>
 
                 <!-- Hover Popup -->
-                <div id="rack-popup" class="hidden fixed z-[100] bg-white rounded-xl shadow-2xl border border-gray-200 p-0 min-w-[280px] max-w-[360px] pointer-events-none">
+                <div id="rack-popup" class="hidden fixed z-[100] bg-white rounded-xl shadow-2xl border border-gray-200 p-0 w-[310px] pointer-events-none">
                 </div>
             </div>
 
@@ -474,6 +494,31 @@
                         <i class="fas fa-qrcode text-4xl text-white mb-2 opacity-80"></i>
                         <h2 class="text-xl font-bold text-white" id="action-title">İşlem</h2>
                     </div>
+                    <!-- RFID Oku Butonu (sadece kirli girişinde görünür) -->
+                    <div id="rfid-oku-container" class="hidden px-6 pt-5 pb-0">
+                        <button type="button" onclick="rfidOku()"
+                            class="w-full flex items-center justify-center gap-3 bg-red-500 hover:bg-red-600 active:bg-red-700 text-white font-bold py-4 rounded-xl shadow-md transition-all text-base">
+                            <i class="fas fa-wifi text-xl"></i>
+                            RFID Oku
+                        </button>
+                    </div>
+
+                    <!-- RFID Oku Sonuç Paneli -->
+                    <div id="rfid-oku-sonuc" class="hidden px-6 pt-4">
+                        <div id="rfid-oku-uyari" class="hidden bg-amber-50 border border-amber-200 rounded-lg p-4 text-center">
+                            <i class="fas fa-inbox text-3xl text-amber-400 mb-2 block"></i>
+                            <p class="text-amber-700 font-semibold text-sm">Kirli sepetinde yeni kıyafet bulunamadı!</p>
+                            <p class="text-amber-500 text-xs mt-1">Tüm kıyafetler zaten kirli bekleyenlerde.</p>
+                        </div>
+                        <div id="rfid-oku-liste" class="hidden">
+                            <div class="flex items-center justify-between mb-2">
+                                <p class="text-sm font-bold text-gray-700"><i class="fas fa-check-circle text-green-500 mr-1"></i><span id="rfid-oku-sayi"></span> kıyafet eklendi</p>
+                                <span id="rfid-oku-kalan" class="text-xs text-gray-400"></span>
+                            </div>
+                            <div id="rfid-oku-items" class="space-y-1.5 max-h-56 overflow-y-auto pr-1"></div>
+                        </div>
+                    </div>
+
                     <div class="p-4 md:p-8">
                         <form id="islem-form" onsubmit="submitIslem(event)">
                             <div class="mb-4">
@@ -543,6 +588,21 @@
 
             <!-- Table View Template -->
             <div id="tablo-view" class="view-section hidden">
+                <!-- Arama Barı -->
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 px-4 py-3 mb-3 flex items-center gap-3">
+                    <div class="relative flex-1">
+                        <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
+                        <input type="text" id="tablo-search"
+                            oninput="filterTable(this.value)"
+                            placeholder="Ad soyad, sicil no, RFID veya raf ile ara..."
+                            class="w-full pl-9 pr-4 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-400 text-sm transition-all">
+                    </div>
+                    <button onclick="filterTable(''); document.getElementById('tablo-search').value=''"
+                        class="text-gray-400 hover:text-gray-600 px-2 py-2 rounded-lg hover:bg-gray-100 transition-colors text-sm shrink-0" title="Temizle">
+                        <i class="fas fa-times"></i>
+                    </button>
+                    <span id="tablo-search-count" class="text-xs text-gray-400 shrink-0 hidden"></span>
+                </div>
                 <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
                     <div class="overflow-x-auto">
                         <table class="w-full whitespace-nowrap">

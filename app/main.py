@@ -469,6 +469,72 @@ def delete_kiyafet(
     write_audit_log(db=db, action="RFID_MATCH_DELETE", detail=f"Silinen: RFID Tag {rfid_tag}, Sicil: {kayit.sicil_numarasi}", ip_address=get_client_ip(request), username=current_user.username)
     return {"status": "success"}
 
+@app.post("/api/islem/rfid-oku")
+def rfid_oku(
+    request: Request,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(security.get_current_user)
+):
+    """
+    Kirli sepetini simüle eder: RFID listesindeki kişilerden henüz kirli bekleyenlerde
+    olmayan rastgele 10 tanesini seçip kirli_kiyafetler tablosuna ekler.
+    Tüm kişiler zaten eklenmişse 'sepet boş' uyarısı döner.
+    """
+    import random
+
+    # Kirli bekleyenlerdeki mevcut sicil numaraları
+    kirli_siciller = {
+        r.sicil_numarasi
+        for r in db.query(models.Kirli_Kiyafet.sicil_numarasi).all()
+    }
+
+    # RFID listesindeki tüm kişilerden kirli olmayanları bul
+    aday_kayitlar = (
+        db.query(models.Kiyafet, models.Calisan)
+        .join(models.Calisan, models.Kiyafet.sicil_numarasi == models.Calisan.sicil_numarasi)
+        .filter(models.Kiyafet.sicil_numarasi.notin_(kirli_siciller))
+        .all()
+    )
+
+    if not aday_kayitlar:
+        return {"durum": "bos", "mesaj": "Kirli sepetinde yeni kıyafet bulunamadı!", "eklenenler": []}
+
+    secilen = random.sample(aday_kayitlar, min(10, len(aday_kayitlar)))
+
+    now_utc = datetime.now(timezone.utc)
+    ip = get_client_ip(request)
+    eklenenler = []
+
+    for kiyafet, calisan in secilen:
+        yeni = models.Kirli_Kiyafet(
+            rfid_tag=kiyafet.rfid_tag,
+            sicil_numarasi=kiyafet.sicil_numarasi,
+            zaman_damgasi=now_utc
+        )
+        db.add(yeni)
+        db.flush()
+        eklenenler.append({
+            "islem_id": yeni.islem_id,
+            "rfid_tag": kiyafet.rfid_tag,
+            "sicil_numarasi": kiyafet.sicil_numarasi,
+            "ad_soyad": f"{calisan.ad} {calisan.soyad}",
+            "cinsiyet": calisan.cinsiyet,
+            "zaman_damgasi": now_utc.isoformat()
+        })
+
+    db.commit()
+
+    write_audit_log(
+        db=db, action="KIRLI_GIRIS",
+        username=current_user.username,
+        detail=f"RFID Oku: {len(eklenenler)} kıyafet kirli sepetine eklendi",
+        ip_address=ip, status="success"
+    )
+
+    kalan = len(aday_kayitlar) - len(secilen)
+    return {"durum": "ok", "eklenenler": eklenenler, "kalan_aday": kalan}
+
+
 @app.post("/api/islem", response_model=dict)
 @limiter.limit("60/minute")
 def process_islem(

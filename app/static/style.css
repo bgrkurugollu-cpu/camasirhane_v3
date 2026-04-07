@@ -91,3 +91,10 @@
     background-color: #fef2f2;
     border-color: #fca5a5;
 }
+.rack-cell.search-highlight {
+    background-color: #eef2ff;
+    border-color: #6366f1;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.3);
+    transform: scale(1.08);
+    z-index: 20;
+}
