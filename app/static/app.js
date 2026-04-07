@@ -537,8 +537,6 @@ async function setupTableView(type) {
         }
 
         tbody.innerHTML = data.map(row => {
-            if (false) { // kiyafet artık loadKiyafetPage ile yükleniyor
-
             let actionBtn = '';
             let rafBadge = '';
             
