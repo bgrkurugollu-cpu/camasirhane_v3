@@ -1,24 +1,151 @@
 # Geliştirici Dokümantasyonu (Developer Guide)
 
-Bu doküman projenin Python arka ucunu destekleyen ekibi bilgilendirmek amacıyla oluşturulmuştur.
+Bu doküman, LaundroStar projesinin teknik mimarisini ve geliştirme standartlarını açıklar.
 
-## Kurulum ve Çalıştırma
+---
 
-LaundroStar, Docker-compose altyapısı üzerine tam entegre çalışır.
+## Mimari Genel Bakış
 
-Sistemi ayağa kaldırmak için:
-```bash
-docker-compose up -d --build
+Sistem üç Docker servisinden oluşur:
+
+| Servis | İmaj | Görev |
+|---|---|---|
+| `db` | postgres:16-alpine | Kalıcı veri deposu |
+| `web` | Dockerfile (Python 3.11) | FastAPI uygulaması (uvicorn) |
+| `nginx` | nginx:alpine | Reverse proxy, TLS sonlandırma |
+
+Nginx dışarıdan gelen tüm HTTP/HTTPS isteklerini karşılar ve `web` servisine iletir. `web` servisi doğrudan dışarıya açık değildir. Veriler `postgres_data` Docker volume'una yazılır.
+
+---
+
+## Kod Katmanları
+
+### `app/database.py`
+PostgreSQL bağlantısını `DATABASE_URL` ortam değişkeninden okur. `SessionLocal` ile her endpoint çağrısı için izole bir veritabanı oturumu açar; `finally` bloğuyla kapatır. `pool_pre_ping=True` sayesinde bağlantı kopuklarını otomatik algılar.
+
+### `app/models.py`
+SQLAlchemy ORM tablo tanımları:
+
+| Model | Tablo | Açıklama |
+|---|---|---|
+| `Calisan` | `calisanlar` | Personel kaydı (sicil, ad, rfid, cinsiyet) |
+| `Kiyafet` | `kiyafetler` | RFID demirbaş kaydı |
+| `Kirli_Kiyafet` | `kirli_kiyafetler` | Çamaşırhanede bekleyen kirli kıyafetler |
+| `Temiz_Kiyafet` | `temiz_kiyafetler` | Temizlendi işlemi tamamlananlar |
+| `Teslim_Edilen` | `teslim_edilenler` | Teslim için bekleyenler |
+| `AuditLog` | `audit_logs` | Tüm kritik işlemlerin denetim kaydı |
+| `User` | `users` | Sistem kullanıcıları (admin/user rolleri) |
+
+Tüm zaman sütunları `DateTime(timezone=True)` ile tanımlanmıştır. `raf_id` alanı `String` tipindedir (örn: `"A37"`).
+
+### `app/schemas.py`
+Pydantic ile istek (Request) ve yanıt (Response) modellerini tanımlar. Her endpoint gelen veriyi bu şemalar üzerinden doğrular.
+
+### `app/security.py`
+- Şifreler `passlib[bcrypt]` ile hashlenir.
+- JWT tokenlar `python-jose` ile oluşturulur ve doğrulanır.
+- `SECRET_KEY`, `ALGORITHM` ve token geçerlilik süresi ortam değişkenlerinden okunur.
+- `get_current_user` dependency'si tüm korumalı endpointlerde kullanılır.
+- `require_role("admin")` ile rol bazlı erişim kontrolü uygulanır.
+
+### `app/main.py`
+Uygulamanın çekirdeği. Temel sabitler ve fonksiyonlar:
+
+```python
+RACK_LETTERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']
+RACK_FLOORS = 7
+RACK_COMPARTMENTS = 5
+
+def get_compartment_capacity(floor: int) -> int:
+    return 1 if floor == 7 else 3
+
+def assign_shelf(db, cinsiyet=None) -> str:
+    # Cinsiyete göre raf seçimi:
+    # Kadın → yalnızca E rafı
+    # Erkek → A-D ve F-H rafları
+    # Boş/kısmi gözler kapasite dolum sırasına göre doldurulur
 ```
 
-Bu kod bloğu, `Dockerfile` içindeki kuralları okuyarak bir python ortamı oluşturur, kütüphaneleri yükler (`requirements.txt`) ve ana uygulamayı (`uvicorn app.main:app`) `0.0.0.0:8085` portunda yayına açar. `data` klasörüne de SQLite veritabanı bağlar.
+---
 
-## Geliştirme Standartları
+## API Uç Noktaları (Özet)
 
-1. **Veri Modelleri (app/models.py)**: SQL veritabanındaki tabloları temsil eder. Tablo kolonlarının isim ve tip tanımlarından sorumludur. Yeni bir obje ekleneceğinde ilk burası düzenlenir. (Örn: `User`, `Kirli_Kiyafet`)
-2. **Pydantic Şemaları (app/schemas.py)**: Gelen JSON verilerini parçalayıp doğrulamak, çıkan JSON verilerini de şekillendirmek için kullanılır. İstek atarken (Request) ve dönerken (Response) ne beklediğimizi katı (strict) olarak belirtir.
-3. **Güvenlik & JWT (app/security.py)**: `bcrypt` ile şifre güvenlik altına alınır. Giriş yapanlara bir `Token` döner. Bu token, `Depends(security.get_current_user)` yapısıyla diğer endpointlerde "Sadece giriş yapanlar girebilir" koşulu sağlamak (<a href="https://fastapi.tiangolo.com/tutorial/security/">FastAPI Dependency Injection</a>) için kullanılır.
-4. **Veritabanı (`app/database.py`)**: `SQLALCHEMY_DATABASE_URL` tanımlar. Bir SessionLocal nesnesi açarak `get_db` ile her endpoint çağrısında yeni ve izole bir db oturumu yaratır, çağrı bitince `finally:` bloğu ile kapatır.
-5. **API Rotaları (`app/main.py`)**: Uygulamanın kalbidir. Gelen isteklerin eşleştirildiği, veritabanına sorguların atılıp manipüle edildiği, Python döngülerinin kurulduğu tüm operasyonların işlendiği yerdir.
+### Kimlik Doğrulama
+| Metod | Yol | Açıklama | Rate Limit |
+|---|---|---|---|
+| POST | `/api/token` | Giriş; JWT döner | 10/dakika |
+| POST | `/api/register` | Yeni kullanıcı kaydı | — |
 
-Tüm servisler bu katmanlar arasında yatay bir iletişim sağlar ve bağımlılıkları minimumda tutar. Python dosyalarının içinde ekibe yardımcı olacak *Docstring* dökümantasyonları bırakılmıştır.
+### İşlem (Kıyafet Döngüsü)
+| Metod | Yol | Açıklama | Rate Limit |
+|---|---|---|---|
+| POST | `/api/islem/kirli` | Kirli kıyafet girişi | 60/dakika |
+| POST | `/api/islem/temizlendi` | Kıyafeti temizlendi olarak işaretle, raf ata | 60/dakika |
+| POST | `/api/islem/teslim` | Kıyafeti teslim et | 60/dakika |
+| GET | `/api/islem/rfid-oku` | Rastgele 10 personel için RFID simülasyonu | — |
+
+### Tablo Listeleme
+| Metod | Yol | Açıklama |
+|---|---|---|
+| GET | `/api/tablo/kirli` | Kirli kıyafetler (ad soyad JOIN) |
+| GET | `/api/tablo/temiz` | Temiz kıyafetler (ad soyad JOIN) |
+| GET | `/api/tablo/teslim` | Teslim edilecekler (ad soyad JOIN) |
+
+### İstatistik ve Raf
+| Metod | Yol | Açıklama |
+|---|---|---|
+| GET | `/api/stats/raflar` | Tüm rafların doluluk özeti |
+| GET | `/api/stats/raf-detay/{harf}` | Belirli bir rafın tüm gözlerinin detayı |
+| GET | `/api/stats/dashboard` | Dashboard istatistikleri |
+
+### Yönetim (Admin)
+| Metod | Yol | Açıklama |
+|---|---|---|
+| GET/POST | `/api/calisanlar` | Personel listesi / ekleme |
+| GET/PUT/DELETE | `/api/calisanlar/{id}` | Personel güncelleme / silme |
+| GET/POST | `/api/kiyafetler` | RFID demirbaş listesi / ekleme |
+| GET | `/api/audit-log` | Denetim kaydı |
+
+---
+
+## Raf Kimlik Formatı
+
+Raf ID'si `{Harf}{Kat}{Kompartıman}` formatındadır:
+- `A` = Raf harfi (A–H)
+- `3` = Kat (1–7)
+- `7` = Kompartıman (1–5)
+- Örnek: `"A37"` = A rafı, 3. kat, 7. kompartıman *(aslında 5 kompartıman var, bu format birleşik string)*
+
+Gerçek format: `f"{harf}{kat}{kompartiman}"` — örn. `"A31"` (A rafı, 3. kat, 1. kompartıman).
+
+---
+
+## Güvenlik Katmanları
+
+- **Rate Limiting:** `slowapi` ile IP başına istek sınırı (`/api/token`: 10/dk, `/api/islem/*`: 60/dk)
+- **JWT:** Her korumalı endpoint `Authorization: Bearer <token>` başlığı gerektirir
+- **RBAC:** Admin-only endpoint'ler `require_role("admin")` dependency'si ile korunur
+- **Audit Log:** Kirli giriş, temizlendi, teslim, kullanıcı yönetimi işlemleri `audit_logs` tablosuna işlenir (kullanıcı adı + IP)
+- **Nginx:** Uygulamanın doğrudan internet erişimi engellenir; tüm trafik proxy üzerinden geçer
+
+---
+
+## Geliştirme Ortamı
+
+Yerel geliştirme için de Docker Compose kullanılır:
+
+```bash
+# Başlat
+docker-compose up -d --build
+
+# Web servis logları
+docker-compose logs -f web
+
+# Veritabanına bağlan
+docker exec -it camasirhane_db psql -U <kullanici> <veritabani>
+
+# Yalnızca web servisini yeniden başlat (kod değişikliklerinde)
+docker-compose restart web
+```
+
+FastAPI'nin otomatik dokümantasyonu (Swagger UI) geliştirme amaçlı olarak `/docs` adresinde erişilebilir durumdadır. Üretim ortamında bu endpoint devre dışı bırakılmalıdır.

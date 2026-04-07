@@ -1,84 +1,133 @@
 # LaundroStar - Kurulum Rehberi
 
-Bu rehber, LaundroStar uygulamasını sıfırdan başka bir bilgisayara (sunucu veya yerel makine) kurmak ve çalıştırmak için izlenmesi gereken adımları içerir. Sistem **Docker** tabanlı olduğu için kurulum oldukça basittir.
+Bu rehber, LaundroStar uygulamasını sıfırdan bir sunucuya veya yerel makineye kurmak için izlenecek adımları içerir.
 
-## Ön Koşullar (Gereksinimler)
+## Ön Koşullar
 
-Sistemi çalıştıracağınız yeni bilgisayarda aşağıdaki yazılımların kurulu olması gerekmektedir:
+Sistemi çalıştıracağınız makinede aşağıdaki yazılımların kurulu olması gerekir:
 
-1. **Docker:** Konteynerleri çalıştırmak için.
-    * [Docker Desktop İndir (Windows/Mac)](https://www.docker.com/products/docker-desktop/)
-    * Linux için: `sudo apt-get install docker-ce docker-ce-cli containerd.io`
-2. **Git:** Proje dosyalarını bilgisayara çekmek için (isteğe bağlı ama önerilir).
-    * [Git İndir](https://git-scm.com/downloads)
-
-*(Not: Python kurmanıza gerek yoktur, Docker tüm Python bağımlılıklarını izole bir şekilde kendi içinde kuracaktır.)*
+1. **Docker Desktop** (Windows/Mac) veya **Docker Engine + Docker Compose** (Linux)
+   - [Docker Desktop İndir](https://www.docker.com/products/docker-desktop/)
+2. **Git** (proje dosyalarını klonlamak için)
+   - [Git İndir](https://git-scm.com/downloads)
+3. **OpenSSL** (TLS sertifikası oluşturmak için — genellikle Git ile birlikte gelir)
 
 ---
 
 ## Adım Adım Kurulum
 
-### Adım 1: Proje Dosyalarının Alınması
-Proje dosyalarını yeni bilgisayara kopyalayın. Kurum içi bir Git sunucunuz varsa repoyu klonlayabilirsiniz. Eğer klasör olarak kopyaladıysanız, klasörü uygun bir dizine (örneğin Masaüstüne) taşıyın.
+### Adım 1: Proje Dosyalarını İndirin
 
-Git ile çekiyorsanız:
 ```bash
 git clone <repo-adresi> camasirhane
 cd camasirhane
 ```
 
-Sadece kopyaladıysanız terminal (veya Command Prompt) açıp proje klasörüne gidin:
+### Adım 2: Ortam Değişkenlerini Yapılandırın
+
+Proje kök dizininde `.env.example` dosyasını kopyalayarak `.env` oluşturun:
+
 ```bash
-cd yol/nereye/kopyaladiysaniz/camasirhane
+cp .env.example .env
 ```
 
-### Adım 2: Konteynerleri Ayağa Kaldırma (Build)
-Uygulamanın bulunduğu ana dizinde (içinde `docker-compose.yml` olan klasörde) terminal üzerinden aşağıdaki komutu çalıştırarak imajı derleyip, veritabanını oluşturup, ağı bağlayıp arka planda (`-d`) çalışmaya bırakın.
+`.env` dosyasını bir metin düzenleyici ile açıp aşağıdaki alanları doldurun:
+
+| Değişken | Açıklama |
+|---|---|
+| `SECRET_KEY` | JWT imzalama anahtarı — güçlü, rastgele bir değer girin |
+| `POSTGRES_USER` | PostgreSQL kullanıcı adı |
+| `POSTGRES_PASSWORD` | PostgreSQL şifresi — tahmin edilemez bir değer seçin |
+| `POSTGRES_DB` | Veritabanı adı |
+| `DATABASE_URL` | `postgresql://<user>:<password>@db:5432/<db>` formatında |
+| `TZ` | Zaman dilimi (örn: `Europe/Istanbul`) |
+
+> **Güvenlik:** `.env` dosyasını asla versiyon kontrolüne (Git'e) eklemeyin. Bu dosya `.gitignore` içinde listelenmektedir.
+
+### Adım 3: TLS Sertifikası Oluşturun
+
+Nginx'in HTTPS sunabilmesi için `nginx/certs/` dizinine self-signed sertifika gerekir:
+
+```bash
+mkdir -p nginx/certs
+openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+  -keyout nginx/certs/selfsigned.key \
+  -out nginx/certs/selfsigned.crt \
+  -subj "/CN=localhost"
+```
+
+> Üretim ortamında Let's Encrypt veya kurumsal CA sertifikası kullanmanız önerilir.
+
+### Adım 4: Konteynerleri Başlatın
 
 ```bash
 docker-compose up -d --build
 ```
-*İlk çalıştırmada; Docker gerekli işletim sistemini, Python çevresini indirecek ve bağımlılıkları derleyecektir (Bu işlem internet hızınıza bağlı olarak birkaç dakika sürebilir).*
 
-### Adım 3: Çalıştığını Doğrulama
-Bu işlem tamamlandıktan sonra, terminalinizde hata yoksa uygulamanız başarılı bir şekilde portlanmış demektir. Konteynerin durumunu görmek için:
+İlk çalıştırmada Docker, Python ortamını ve bağımlılıkları indirir; PostgreSQL veritabanı ve tablolar otomatik oluşturulur. Bu işlem birkaç dakika sürebilir.
+
+### Adım 5: Kurulumu Doğrulayın
+
 ```bash
-docker ps
+docker-compose ps
 ```
-Burada `camasirhane-web-1` (veya benzeri isimli) uygulamanızın **8085** portunda (0.0.0.0:8085) ayakta olduğunu görmelisiniz.
+
+Çıktıda `db`, `web` ve `nginx` servislerinin `running` (veya `Up`) durumunda olması beklenir.
 
 ---
 
-## Sisteme Erişim ve Kullanım
+## Sisteme Erişim
 
-### Web Arayüzüne Girmek
-Kurulum tamamlandıktan sonra, bilgisayarınızda bir internet tarayıcısı (Chrome, Safari, Edge) açın ve adres çubuğuna şunu yazın:
+Kurulum tamamlandıktan sonra tarayıcınızda şu adresi açın:
 
-* **Lokal Kurulum İçin:** `http://localhost:8085` veya `http://127.0.0.1:8085`
-* **Sunucu Kurulumu Varsa:** `http://<sunucu-ip-adresi>:8085`
+- **HTTPS (önerilen):** `https://localhost` veya `https://<sunucu-ip>`
+- Self-signed sertifika kullandığınız için tarayıcı güvenlik uyarısı gösterebilir; "Gelişmiş → Devam et" seçeneğiyle geçebilirsiniz.
 
-### İlk Kullanıcılarla Giriş (Mock Data)
-Sisteme ilk kez girildiğinde veritabanı tamamen boştur. Yönetici hesabı oluşturmak ve temel konfigürasyonu (Personeller ve Kıyafetlerin RFID takipleri) başlatmak için:
+> HTTP (port 80) istekleri otomatik olarak HTTPS (port 443)'e yönlendirilir.
 
-1. `app/main.py` dosyasında yazdığımız "Demo Verisi Yükle" (`/api/init_mock_data`) API'sini tetikleyebilirsiniz. (Eski arayüzdeki butonu kaldırdığımızdan curl veya postman ile çağırabilirsiniz veya doğrudan SQLite yönetim paneli ile kendi tablolarınızı manuel girebilirsiniz.)
-2. Bir kez admin ve personeller veritabanına işlendikten sonra `http://localhost:8085` adresinden:
-   - **Kullanıcı Adı:** `admin` | **Şifre:** `admin`   *(Yetkili hesap)*
-   - **Kullanıcı Adı:** `user` | **Şifre:** `user`     *(Sadece işlem görebilen hesap)*
-   bilgileriyle sisteme giriş yapabilirsiniz.
+### İlk Kullanıcı Oluşturma
 
-*(Güvenlik notu: Sisteme ilk girişinizden sonra sağ üst köşeden profilinize girerek bu varsayılan şifreleri hemen değiştirmeniz önerilir.)*
+Sistem ilk başlatıldığında veritabanı boştur. Admin kullanıcısı oluşturmak için `/api/register` endpoint'ine veya doğrudan veritabanına bağlanarak kayıt ekleyebilirsiniz.
+
+Giriş yaptıktan sonra sağ üst köşedeki profil menüsünden şifrenizi hemen değiştirmeniz önerilir.
 
 ---
 
-## Veritabanı ve Kritik Dosyalar
+## Veritabanı Yönetimi
 
-* Mimaride veritabanı Docker'ın içindeki sanal diske gömülü **değildir**. Docker'a dışarıdan bağlı (`bind-mount`) lokal bir volume oluşturulmuştur.
-* `camasirhane/data/camasirhane.db` dosyasını yeni bir yere taşırsanız, **tüm sistem geçmişi, kayıtlar ve şifreler o dosyanın içindedir.**
-* Bilgisayarı kapatıp açtığınızda Docker Desktop otomatik başlıyorsa uygulamanız da arka planda kendi kendine otomatik olarak yayın yapmaya devam edecektir.
+Veriler `postgres_data` adlı Docker volume'una kaydedilir. Bu volume, konteyner silinse bile yerinde kalır.
 
-## Sistemin Kapatılması
-Servisi geçici olarak durdurmak isterseniz ana proje dizininde şu komutu verebilirsiniz:
+- **Volume yedeği almak için:**
+  ```bash
+  docker exec camasirhane_db pg_dump -U <kullanici> <veritabani> > yedek.sql
+  ```
+- **Yedeği geri yüklemek için:**
+  ```bash
+  cat yedek.sql | docker exec -i camasirhane_db psql -U <kullanici> <veritabani>
+  ```
+
+---
+
+## Sistemi Durdurmak / Yeniden Başlatmak
+
 ```bash
+# Durdur (veriler korunur)
 docker-compose down
+
+# Yeniden başlat
+docker-compose up -d
+
+# Logları izle
+docker-compose logs -f web
 ```
-*(Bunu yaptığınızda verileriniz silinmez, koruma altındadır. Uygulamayı yeniden ulaşıma açmak için tekrar `docker-compose up -d` demeniz yeterlidir).*
+
+---
+
+## Sık Karşılaşılan Sorunlar
+
+| Sorun | Çözüm |
+|---|---|
+| `web` servisi başlamıyor | `docker-compose logs web` ile hata mesajını inceleyin. `.env` dosyasının doğru yapılandırıldığından emin olun. |
+| PostgreSQL bağlantı hatası | `db` servisi sağlıklı duruma geçmeden `web` başlamaya çalışmış olabilir. Birkaç saniye bekleyip `docker-compose restart web` deneyin. |
+| Sertifika uyarısı | Normal; self-signed sertifika kullanan sistemlerde tarayıcı uyarısı beklenir. |
+| Port çakışması | Başka bir uygulama 443 veya 80 portunu kullanıyorsa `nginx/nginx.conf` içindeki portları değiştirin. |

@@ -1,62 +1,101 @@
-# LaundroStar (Çamaşırhane Otomasyon Sistemi) - Yönetim Özeti & Teknik Altyapı Raporu
+# LaundroStar - Yönetim Özeti ve Teknik Altyapı Raporu
 
-Aşağıdaki belge, projemizin halihazırda ulaştığı mevcut durumu ("As-Is"), kurduğumuz güçlü teknolojik altyapıyı, güvenlik standartlarını ve gelecekteki kurumsal ölçeklenme opsiyonlarını ("To-Be") şirket yönetimi ve CEO seviyesinde sunmak amacıyla hazırlanmıştır.
+Bu belge, LaundroStar sisteminin mevcut durumunu, teknolojik altyapısını, güvenlik standartlarını ve kurumsal ölçeklenme potansiyelini yönetim seviyesinde özetlemek amacıyla hazırlanmıştır.
 
 ---
 
 ## 1. Yönetici Özeti (Executive Summary)
-LaundroStar, işletmemizin çamaşırhane süreçlerini, kıyafet/üniforma zimmetlerini ve günlük temizlik döngülerini dijitalleştirmek amacıyla geliştirilmiş, **uçtan uca entegre bir RFID/Barkod otomasyon ve takip sistemidir.** 
 
-Amacımız; kayıp kaçak oranlarını sıfıra indirmek, manuel veri giriş hatalarını ortadan kaldırmak, anlık raf doluluk/kapasite yönetimini sağlamak ve yöneticilere veriye dayalı anlık kararlar alabilmeleri için canlı bir Dashboard sunmaktır.
+LaundroStar, işletmenin çamaşırhane süreçlerini, kıyafet/üniforma zimmetlerini ve günlük temizlik döngülerini dijitalleştirmek amacıyla geliştirilmiş **uçtan uca entegre bir RFID otomasyon ve takip sistemidir.**
 
----
-
-## 2. Teknik Altyapı ve Kullanılan Framework'ler (Tech Stack)
-
-Uygulama, modern, bulut sistemlerine hazır ve yüksek performanslı araçlar seçilerek "Microservice" mimari konseptine uygun şekilde inşa edilmiştir:
-
-*   **Konteyner Mimarisi:** **Docker & Docker Compose**
-    *   Hizmetlerimiz (Web, Veritabanı ve Sunucu Proxy'si) izole edilmiş Docker konteynerleri içerisinde çalıştırılmaktadır. Bu sayede uygulamanın herhangi bir sunucuya kurulum süresi saniyelerle ifade edilebilir.
-*   **Web Sunucusu ve Proxy:** **NGINX**
-    *   Trafiği karşılamak ve load-balancing (yük dengeleme) yapmak için Nginx kullanılmaktadır. Üst düzey güvenlik için SSL/TLS (HTTPS) protokollerini yönetir ve uygulamaya güvenli erişim sağlar.
-*   **Backend (Motor ve API):** **Python 3 ve FastAPI**
-    *   Saniyede binlerce isteği asenkron (async/await) yapısıyla yönetebilen, sektördeki en hızlı ve modern API framework'lerinden biridir. %100 RESTful mimari ile Frontend'i besler.
-*   **Veritabanı (Database):** **PostgreSQL 16 (Alpine) & SQLAlchemy**
-    *   İlişkisel veritabanı yönetim sistemi olarak, açık kaynak dünyasının endüstri standardı olan güçlü **PostgreSQL** tercih edilmiştir. On milyonlarca satır veriyi sıfır veri kaybı riskiyle yönetebilecek güce sahiptir.
-*   **Frontend (Ön Yüz):** **Vanilla JavaScript, HTML5 & Tailwind CSS**
-    *   Tarayıcıların doğrudan donanımı (kamera, okuyucu) kullanabilmesini sağlayan bir altyapı tasarlandı. Tailwind CSS ile mobil ve endüstriyel tabletlere tam uyum (responsive) sağlandı. `Chart.js` ile dashboard yöneticiler için görselleştirildi, `jsPDF` ve `QRious` ile endüstriyel etiket yazdırma becerisi eklendi.
+Hedefler:
+- Kayıp/kaçak oranlarını sıfıra indirmek
+- Manuel veri giriş hatalarını ortadan kaldırmak
+- Raf doluluk/kapasite yönetimini anlık olarak sağlamak
+- Yöneticilere veriye dayalı karar destek paneli (Dashboard) sunmak
 
 ---
 
-## 3. Sistem Tasarımı, Veritabanı ve Güvenlik
-Sanayi tesislerinde verinin güvenilirliği kritik önem taşıdığı için güvenlik ağı derinlemesine bir tasarımla belirlenmiştir:
+## 2. Teknoloji Yığını (Tech Stack)
 
-*   **Rol Bazlı Yetkilendirme (RBAC) & JWT (JSON Web Tokens):** 
-    *   Sistem, standart "Görevli" ve "Sistem Yöneticisi" (Admin) ayrımına sahiptir. Sadece yetkili Admin'ler personelleri / RFID demirbaşlarını yönetebilir.
-*   **Dinamik Kısıtlama (Rate Limiting):**
-    *   `SlowAPI` kullanılarak IP bazlı hız sınırlandırmaları getirilmiştir. Kötü amaçlı yazılımların ardışık login denemeleri veya sisteme sızma girişimleri donanımsal düzeyde engellenir.
-*   **Ağ Güvenliği (Nginx Reverse Proxy):**
-    *   API'ın doğrudan internete açık olması Nginx ile engellenmiş; sadece yetkilendirilmiş HTTPS istekleri kapıdan geçirilerek uygulamanın izole kalkan arkasında kalması sağlanmıştır.
-*   **Gelişmiş Denetim İzi (Audit Log Sistemi):**
-    *   Uygulamadaki veri işleme adımlarının %100'ü kayıt altındadır. Hangi kullanıcının, hangi IP adresinden, hangi personel veya RFID üzerinde işlem yaptığı PostgreSQL veri tabanına işlenerek suistimallerin önüne kesilir.
+Uygulama, kurumsal standartlara uygun ve bulut sistemlerine hazır araçlar seçilerek geliştirilmiştir:
+
+### Konteyner Mimarisi — Docker & Docker Compose
+Sistem üç izole servis olarak çalışır: **Veritabanı (PostgreSQL)**, **Web Uygulaması (FastAPI)** ve **Proxy Sunucusu (Nginx)**. Docker sayesinde uygulamanın herhangi bir sunucuya taşınma ve başlatılma süresi dakikalarla ifade edilebilir.
+
+### Web Sunucusu ve Proxy — Nginx
+Dış dünyadan gelen trafiği karşılar. TLS/SSL (HTTPS) protokolünü yönetir; HTTP isteklerini HTTPS'e otomatik yönlendirir. Web uygulaması doğrudan internete açık değildir.
+
+### Backend — Python 3.11 & FastAPI
+Asenkron (async/await) mimarisiyle yüksek performanslı, RESTful API sunar. Her işlem adımı denetim kaydıyla belgelenir.
+
+### Veritabanı — PostgreSQL 16 & SQLAlchemy
+Kurumsal düzeyde ilişkisel veritabanı. Yüzlerce eş zamanlı bağlantıyı destekler; veriler kalıcı Docker volume'una yazılır.
+
+### Frontend — HTML5, Tailwind CSS, Vanilla JavaScript, Chart.js
+Tarayıcı tabanlı, ek kurulum gerektirmez. Masaüstü ve tablet cihazlara tam uyumlu (responsive). Dashboard yöneticiler için Chart.js ile görselleştirilmiştir.
+
+---
+
+## 3. Sistem Özellikleri
+
+### Kıyafet Takip Döngüsü
+- **Kirli Giriş:** RFID etiketi veya sicil numarası ile kıyafet sisteme alınır.
+- **Temizlendi:** Yıkama tamamlandığında işaretlenir; kıyafet otomatik raf konumuna atanır.
+- **Teslim:** Kıyafet personele teslim edildiğinde döngü kapanır.
+
+### Otomatik Raf Atama Sistemi
+8 raf bölümü (**A–H**), her biri 7 kat × 5 kompartıman. Toplam 280 göz. Sistem, kıyafeti personelin cinsiyetine göre doğru rafa yönlendirir:
+- Kadın personeller → yalnızca **E rafı**
+- Erkek personeller → A, B, C, D, F, G, H rafları
+
+Atama algoritması gözleri kapasite dolma sırasına göre doldurur; taşma olmaz.
+
+### 2D İnteraktif Raf Simülasyonu
+- Her raf için 7×5 ızgara haritası
+- Gözler doluluk durumuna göre renk kodlu (boş / kısmi / dolu)
+- Üzerine gelindiğinde personel listesi popup olarak görüntülenir
+- Sicil veya ad soyad ile arama; sonuç bulunan göze otomatik yönlendirme
+
+### RFID Oku Simülasyonu
+Kirli kıyafet girişinde "RFID Oku" butonuna basıldığında sistem rastgele 10'a kadar personel tarar ve formu hazırlar. Gerçek RFID donanımıyla entegre çalışacak şekilde tasarlanmıştır.
+
+### Tablo Araması
+Kirli bekleyenler, temizlenenler, teslim edilecekler, personel ve RFID listelerinde anlık metin araması.
 
 ---
 
-## 4. Kurumsal Ölçekte Kullanılabilirlik (Scalability)
+## 4. Güvenlik Mimarisi
 
-### Halihazırdaki Mevcut Kapasitemiz (As-Is Durumu)
-Şu anda kurduğumuz Docker+PostgreSQL mimarisi ile bu uygulama **Enterprise (Kurumsal) Standartlarda** çalışmaktadır;
-*   **Veri Yönetimi:** PostgreSQL veritabanımız aynı anda yüzlerce cihazın paralel barkod okutma isteğine (Concurrency) hiç zorlanmadan cevap verebilecek güce sahiptir. Veriler güvenle anlık olarak donanıma yazılır.
-*   **Yüksek Kararlılık:** Konteyner mimarisi her bir servisin (Nginx, Web, DB) eğer beklenmeyen bir arıza çıkarsa saniyeler içinde otomatik olarak tekrar başlatılmasını (`restart: unless-stopped`) garanti eder. Kesinti süresi neredeyse sıfırdır.
-*   Uygulama aktif yüzlerce çalışanın birden çok çamaşır zimmet döngüsünü ve geçmişe dönük milyonlarca işlem satırını rahatça listeleyebilir.
-
-### Gelecek İçin Ölçekleme ve Transformasyon Opsiyonları (To-Be Durumu)
-Sistemin sahip olduğu asenkron ve API-First dizaynı, uygulamayı gelecekteki mega-kurumsal senaryolara hazırlamaktadır:
-
-1.  **High-Availability (Yüksek Bulunabilirlik) & Kubernetes:** Proje hali hazırda Docker üzerinden yürüdüğü için yarın "Multi-Node" bir Kubernetes dağıtımına bağlanıp, şirket büyüdükçe arkadaki web sunucu sayısı 1'den 100'e otomatik çıkartılabilir (Auto-Scaling). Database tarafında PostgreSQL Replication (Aktif-Pasif Kümeleme) yapılabilir.
-2.  **Mesaj Kuyrukları ile Yük Dağıtımı (RabbitMQ / Kafka):** Kurumun üretim hacminin olağanüstü boyutlara ulaştığı durumlarda barkod taramaları mikro-saniyelik yanıtlar dönmesi adına doğrudan veri tabanına değil, MQ tabanlı kuyruklara (Kafka) yazılarak Backend tarafından asenkron eritilebilir.
-3.  **IoT & Donanım Tünelleri Sinerjisi:** Manuel barkod kullanımının ötesine geçilerek, çamaşırhane kapılarına asılacak toplu RFID tünellerinden geçen yüzlerce sepet barkodu, doğrudan API'ımıza basılabilir ve insan faktörü elenerek %100 otonomlaştırmaya gidilebilir.
-4.  **ERP ve İK Entegrasyonları (SAP / Oracle):** Var olan açık API mimarisi dış dünyaya açılarak yeni işe başlayan bir çalışanın ERP üzerindeki kaydının tetiklenmesiyle o saniye LaundroStar sisteminde otomatik personel dosyası açması programlanabilir.
+| Katman | Uygulama |
+|---|---|
+| **Ağ izolasyonu** | Nginx reverse proxy; uygulama doğrudan internete açık değil |
+| **Şifreleme** | HTTPS (TLS 1.2/1.3); tüm trafik şifreli |
+| **Kimlik doğrulama** | JWT tabanlı; token süresi dolduğunda oturum kapanır |
+| **Yetkilendirme** | Rol bazlı erişim (RBAC): admin / user |
+| **Brute-force koruması** | IP bazlı rate limiting (slowapi) |
+| **Denetim izi** | Tüm kritik işlemler kullanıcı adı ve IP ile kayıt altında |
 
 ---
-**Özetle:** LaundroStar sadece bir panel değil; Endüstri standardında veritabanı yapısına (PostgreSQL), güvenliğe (NGINX/TLS) ve konteyner esnekliğine (Docker) halihazırda oturtulmuş Global çapta ölçeklenebilir bir kurumsal IT ekosistemidir.
+
+## 5. Kurumsal Ölçeklenme Potansiyeli
+
+### Mevcut Durum
+Kurulu Docker + PostgreSQL mimarisi kurumsal standartlarda çalışmaktadır:
+- PostgreSQL eş zamanlı yüzlerce bağlantıyı destekler
+- Konteyner mimarisi beklenmedik çöküşlerde servisleri otomatik yeniden başlatır (`restart: unless-stopped`)
+- Yüzlerce aktif personel ve geçmişe dönük milyonlarca işlem kaydını sorunsuz yönetir
+
+### Gelecek Ölçekleme Opsiyonları
+
+1. **Kubernetes & Yüksek Erişilebilirlik:** Proje Docker tabanlı olduğundan Kubernetes'e taşınması mümkündür. Web sunucu sayısı talebe göre otomatik artırılabilir (Auto-Scaling). PostgreSQL tarafında replikasyon yapılabilir.
+
+2. **Mesaj Kuyrukları (RabbitMQ / Kafka):** Üretim hacmi büyüdüğünde barkod/RFID tarama istekleri kuyruk sistemine alınarak asenkron işlenebilir.
+
+3. **RFID Donanım Entegrasyonu:** Gerçek RFID tünel okuyucuları API'ye doğrudan bağlanarak insan faktörü sürece dahil olmadan %100 otonom çalışma sağlanabilir.
+
+4. **ERP / İK Entegrasyonu:** Açık RESTful API mimarisi üzerinden SAP, Oracle gibi sistemlerle entegrasyon kurularak personel verisi iki yönlü senkronize edilebilir.
+
+---
+
+**Sonuç:** LaundroStar; kurumsal veritabanı (PostgreSQL), ağ güvenliği (Nginx/TLS), izole konteyner mimarisi (Docker) ve kapsamlı denetim altyapısıyla yalnızca bir operasyon paneli değil, ölçeklenebilir bir kurumsal IT ekosistemidir.

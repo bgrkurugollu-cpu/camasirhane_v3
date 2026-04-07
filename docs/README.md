@@ -1,42 +1,65 @@
 # LaundroStar - Çamaşırhane Otomasyon Sistemi
 
-Yıldız Tech tarafından geliştirilen LaundroStar, fabrikaların ve işletmelerin çamaşırhane süreçlerini otomatikleştirip, personellerin (işçilerin) kıyafetlerinin temizlik durumunu takip etmeyi sağlayan Dockerize edilmiş modern bir web uygulamasıdır. *(Geliştirme: Buğra Kurugöllü / @bugrakurugollu)*
+LaundroStar, fabrikaların ve işletmelerin çamaşırhane süreçlerini otomatikleştirip personellerin kıyafetlerinin temizlik durumunu takip etmesini sağlayan, Docker tabanlı modern bir web uygulamasıdır.
 
 ## Mimari ve Teknoloji Yığını
-Platform aşağıdaki teknolojiler üzerine kurgulanmıştır:
 
-* **Backend:** Python 3.11, FastAPI (Hızlı ve modern API geliştirimi)
-* **Veritabanı:** SQLite (Kolay kurulum ve taşınabilirlik `data/camasirhane.db`), SQLAlchemy (ORM mimarisi)
-* **Güvenlik:** JWT (JSON Web Tokens), Bcrypt (Şifre hashleme protokolü)
-* **Frontend:** HTML5, Tailwind CSS, Vanilla JavaScript, Chart.js (Grafik kütüphanesi)
-* **Konteynerizasyon:** Docker, Docker Compose
+| Katman | Teknoloji |
+|---|---|
+| **Backend** | Python 3.11, FastAPI |
+| **Veritabanı** | PostgreSQL 16 (Alpine), SQLAlchemy ORM |
+| **Güvenlik** | JWT (JSON Web Tokens), bcrypt (şifre hashleme), slowapi (rate limiting) |
+| **Frontend** | HTML5, Tailwind CSS, Vanilla JavaScript, Chart.js |
+| **Proxy / TLS** | Nginx (HTTP→HTTPS yönlendirme, self-signed TLS) |
+| **Konteynerizasyon** | Docker, Docker Compose (3 servis: db, web, nginx) |
 
 ## Proje Yapısı
 
 ```
 camasirhane/
 ├── app/
-│   ├── main.py         # API Uç Noktaları (Endpoints) ve İş Mantığı
-│   ├── models.py       # SQLAlchemy Veritabanı Tablo Tanımlamaları
-│   ├── schemas.py      # Pydantic Veri Doğrulama ve Yanıt Modelleri
-│   ├── security.py     # Auth, RBAC, Hasher ve Token yönetim servisleri
+│   ├── main.py         # API uç noktaları ve iş mantığı
+│   ├── models.py       # SQLAlchemy veritabanı tablo tanımlamaları
+│   ├── schemas.py      # Pydantic veri doğrulama ve yanıt modelleri
+│   ├── security.py     # JWT, RBAC ve şifre yönetimi
 │   ├── database.py     # Veritabanı bağlantısı ve oturum yönetimi
-│   └── static/         # Frontend dosyaları (app.js, style.css, index.html vb.)
-├── data/               # SQLite veritabanı dosyasının tutulduğu docker volume'u
-├── docs/               # Proje dökümantasyonları
-├── Dockerfile          # Web servisi için imaj kuralları
-├── docker-compose.yml  # Servislerin orkestrasyon dosyası
-└── requirements.txt    # Python kütüphane bağımlılıkları listesi
+│   └── static/         # Frontend dosyaları (index.html, app.js, style.css)
+├── nginx/
+│   ├── nginx.conf      # Nginx proxy ve TLS konfigürasyonu
+│   └── certs/          # TLS sertifika dosyaları (gitignored)
+├── docs/               # Proje dokümantasyonları
+├── .env.example        # Ortam değişkenleri şablonu
+├── Dockerfile          # Web servisi imaj kuralları
+├── docker-compose.yml  # Servis orkestrasyon dosyası
+└── requirements.txt    # Python bağımlılıkları
 ```
 
-## Temel Çalışma Algoritması
+## Temel Çalışma Akışı
 
-Sistem, işlenmesi gereken kıyafetlerin döngüsünü 3 farklı tabloda / durumda takip eder:
+Sistem, kıyafet döngüsünü üç aşamada takip eder:
 
-1. **Kirli Girişi (`kirli_kiyafetler`):** İşçinin RFID etiketi veya Sicil Numarası okutulduğunda kıyafet çamaşırhaneye "kirli" olarak girer.
-2. **Kıyafetin Temizlenmesi (`temiz_kiyafetler` ve `teslim_edilenler`):** Kirli listesindeki ürünler yıkandıktan sonra arayüz üzerinden "Temizlendi" olarak işaretlenir. Bu eylem sonrası:
-   - Kayıt `kirli_kiyafetler` tablosundan silinir.
-   - İlgili kayıt log tutmak amacıyla `temiz_kiyafetler` tablosuna eklenir.
-   - Eş zamanlı olarak çalışana verilmeye hazır olduğunu belirtmek adına `teslim_edilenler` tablosuna kaydedilir.
+1. **Kirli Girişi:** Personelin RFID etiketi veya sicil numarası okutulduğunda kıyafet `kirli_kiyafetler` tablosuna eklenir.
+2. **Temizlendi İşlemi:** Kirli listedeki kayıt "Temizlendi" olarak işaretlenir; kayıt `temiz_kiyafetler` ve `teslim_edilenler` tablolarına aktarılır. Sistem, personelin cinsiyetine göre otomatik olarak bir raf konumu atar.
+3. **Teslim:** Teslim edilecekler listesindeki kayıt teslim edildiğinde döngü tamamlanır.
 
-3. **Yetkilendirme (RBAC):** `admin` rolü tüm kullanıcıları görebilir, düzenleyebilir ve geçmiş istatistiklerle raporlamalara erişebilir. `user` rolü sadece günlük kıyafet operasyonlarını yapabilir ve kendi profilini güncelleyebilir.
+## Raf Sistemi
+
+Çamaşırhane rafları 8 bölümden oluşur (**A–H**), her bölüm 7 kat × 5 kompartıman = 35 göze sahiptir. Göze kapasitesi: Kat 7 → 1 adet, Kat 1–6 → 3 adet.
+
+- **Cinsiyet yönlendirme:** Kadın personellerin kıyafetleri yalnızca **E rafı**na atanır. Erkek personellerin kıyafetleri A–D ve F–H raflarına atanır.
+- Atama algoritması boş/kısmi gözleri kapasite dolma sırasına göre doldurur.
+
+## Kullanıcı Rolleri
+
+| Rol | Yetkiler |
+|---|---|
+| **admin** | Tüm personel/RFID yönetimi, istatistikler, kullanıcı yönetimi |
+| **user** | Günlük kıyafet operasyonları (kirli girişi, temizlendi, teslim) |
+
+## Öne Çıkan Özellikler
+
+- **2D Raf Simülasyonu:** A–H raflarının interaktif görsel haritası; gözlerin doluluk durumu renk kodlu gösterilir, üzerine gelindiğinde popup ile içerik listelenir.
+- **RFID Oku Simülasyonu:** Kirli kıyafet girişinde "RFID Oku" butonu ile 10'a kadar rastgele personel taranır.
+- **Tablo Arama:** Tüm tablo ekranlarında (kirli, temiz, teslim, personel, RFID) anlık metin araması.
+- **Raf Arama:** Sicil numarası veya ad soyad ile raf konumu araması; sonuç bulunduğunda ilgili raf ve göze otomatik yönlendirir.
+- **Denetim Logu:** Tüm kritik işlemler kullanıcı adı ve IP adresiyle kayıt altına alınır.
