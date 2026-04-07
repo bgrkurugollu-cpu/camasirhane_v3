@@ -3,7 +3,7 @@ version: '3.8'
 services:
   db:
     image: postgres:16-alpine
-    container_name: camasirhane_db
+    container_name: laundrostar_db
     restart: unless-stopped
     env_file: .env
     environment:
@@ -19,7 +19,7 @@ services:
       retries: 5
 
   web:
-    container_name: camasirhane_web
+    container_name: laundrostar_web
     build: .
     restart: unless-stopped
     env_file: .env
@@ -35,7 +35,7 @@ services:
 
   nginx:
     image: nginx:1.25-alpine
-    container_name: camasirhane_nginx
+    container_name: laundrostar_nginx
     restart: unless-stopped
     ports:
       - "80:80"
