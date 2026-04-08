@@ -638,59 +638,93 @@ function removeTurkish(str) {
     return str.replace(/[çÇğĞşŞüÜıİöÖ]/g, match => map[match] || match);
 }
 
+// Aktif barkod verisi (modal için state)
+let _barkodData = null;
+
 function yazdirBarkod(rafId, sicil, adSoyad, zamanDamgasi, rfidTag) {
-    if (!window.jspdf || !window.QRious) {
-        showToast("Gerekli kütüphaneler yüklenemedi!", true);
+    if (!window.QRious) {
+        showToast("QRious kütüphanesi yüklenemedi!", true);
         return;
     }
-    
-    const { jsPDF } = window.jspdf;
-    
-    const doc = new jsPDF({
-        orientation: 'landscape',
-        unit: 'mm',
-        format: [100, 50]
-    });
 
-    const formatZaman = new Date(zamanDamgasi).toLocaleString('tr-TR');
-    const safeAdSoyad = removeTurkish(adSoyad || 'Bilinmiyor');
+    _barkodData = { rafId, sicil, adSoyad, zamanDamgasi, rfidTag };
+
+    // QR canvas'ını doldur
+    const canvas = document.getElementById('bc-qr');
+    if (rfidTag) {
+        new QRious({ element: canvas, value: rfidTag, size: 110, level: 'M', background: '#ffffff', foreground: '#1e1e2d' });
+    } else {
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, 110, 110);
+        ctx.fillStyle = '#f3f4f6';
+        ctx.fillRect(0, 0, 110, 110);
+        ctx.fillStyle = '#9ca3af';
+        ctx.font = '11px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('RFID yok', 55, 58);
+    }
+
+    const formatZaman = zamanDamgasi ? new Date(zamanDamgasi).toLocaleString('tr-TR') : '—';
+    document.getElementById('bc-baslik').textContent  = 'LaundroStar';
+    document.getElementById('bc-baslik2').textContent = `Raf ${rafId || '?'}`;
+    document.getElementById('bc-raf').textContent     = `Raf: ${rafId || '?'}`;
+    document.getElementById('bc-isim').textContent    = adSoyad || '—';
+    document.getElementById('bc-sicil').textContent   = `Sicil: ${sicil || '—'}`;
+    document.getElementById('bc-tarih').textContent   = `Tarih: ${formatZaman}`;
+    document.getElementById('bc-rfid').textContent    = `RFID: ${rfidTag || '—'}`;
+
+    document.getElementById('barkod-modal').classList.remove('hidden');
+}
+
+function _barkodPdfDoc() {
+    if (!window.jspdf) { showToast("jsPDF yüklenemedi!", true); return null; }
+    const { rafId, sicil, adSoyad, zamanDamgasi, rfidTag } = _barkodData;
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: [100, 50] });
+    const formatZaman = zamanDamgasi ? new Date(zamanDamgasi).toLocaleString('tr-TR') : '?';
+    const safeAd = removeTurkish(adSoyad || 'Bilinmiyor');
 
     doc.setFont("helvetica", "bold");
     doc.setFontSize(11);
-    doc.text("LaundroStar - islem Barkodu", 50, 7, { align: "center" });
-
+    doc.text("LaundroStar - Islem Barkodu", 50, 7, { align: "center" });
     doc.setLineWidth(0.5);
     doc.rect(4, 10, 92, 35);
-
     doc.setFontSize(14);
-    doc.text("RAF: " + removeTurkish(rafId), 8, 18);
-
+    doc.text("RAF: " + removeTurkish(rafId || '?'), 8, 18);
     doc.setFontSize(9);
     doc.setFont("helvetica", "normal");
-    doc.text("Sicil: " + removeTurkish(sicil || 'Bilinmiyor'), 8, 25);
-    doc.text("Kisi: " + safeAdSoyad, 8, 31);
+    doc.text("Sicil: " + removeTurkish(sicil || '?'), 8, 25);
+    doc.text("Kisi: " + safeAd, 8, 31);
     doc.text("Tarih: " + formatZaman, 8, 37);
-    
     doc.setFontSize(7);
     doc.text("RFID: " + (rfidTag || 'Yok'), 8, 42);
-
     if (rfidTag) {
-        try {
-            const qr = new QRious({
-                value: rfidTag,
-                size: 250,
-                level: 'M'
-            });
-            const qrDataUrl = qr.toDataURL();
-            
-            doc.addImage(qrDataUrl, 'PNG', 70, 15, 24, 24);
-        } catch (e) {
-            console.error("QR kod olusturulurken hata:", e);
-        }
+        const qrDataUrl = document.getElementById('bc-qr').toDataURL('image/png');
+        doc.addImage(qrDataUrl, 'PNG', 70, 15, 24, 24);
     }
+    return { doc, safeName: removeTurkish(adSoyad || 'bilinmiyor').replace(/\s+/g, '_').toLowerCase(), rafId };
+}
 
-    const safeName = removeTurkish(adSoyad || 'bilinmiyor').replace(/\s+/g, '_').toLowerCase();
-    doc.save(`barkod_raf_${rafId}_${safeName}.pdf`);
+function barkodYazdir() {
+    if (!_barkodData) return;
+    const result = _barkodPdfDoc();
+    if (!result) return;
+    const { doc } = result;
+    const blob = doc.output('blob');
+    const url = URL.createObjectURL(blob);
+    const win = window.open(url);
+    if (win) {
+        win.onload = () => { win.focus(); win.print(); };
+    }
+}
+
+function barkodPngIndir() {
+    if (!_barkodData) return;
+    const canvas = document.getElementById('bc-qr');
+    const link = document.createElement('a');
+    link.download = `barkod_raf_${_barkodData.rafId || 'x'}_${removeTurkish(_barkodData.adSoyad || 'bilinmiyor').replace(/\s+/g,'_').toLowerCase()}.png`;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
 }
 
 async function editKiyafet(old_rfid, old_sicil) {

@@ -696,6 +696,52 @@
         </div>
     </main>
 
+    <!-- Barkod Önizleme Modalı -->
+    <div id="barkod-modal" class="fixed inset-0 z-[100] flex items-center justify-center bg-gray-900 bg-opacity-60 hidden">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4">
+            <!-- Başlık -->
+            <div class="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+                <div class="flex items-center gap-2 text-gray-700 font-semibold text-sm">
+                    <i class="fas fa-barcode text-indigo-500"></i> İşlem Barkodu
+                </div>
+                <div class="flex items-center gap-2">
+                    <button onclick="barkodPngIndir()" class="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg border border-gray-200 hover:bg-gray-50 text-gray-600 transition-colors">
+                        <i class="fas fa-download text-xs"></i> PNG İndir
+                    </button>
+                    <button onclick="barkodYazdir()" class="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-medium transition-colors">
+                        <i class="fas fa-print text-xs"></i> Yazdır
+                    </button>
+                    <button onclick="document.getElementById('barkod-modal').classList.add('hidden')" class="text-gray-400 hover:text-gray-600 ml-1 text-lg leading-none">&times;</button>
+                </div>
+            </div>
+            <!-- Önizleme kartı -->
+            <div class="p-6">
+                <div id="barkod-card" class="rounded-xl overflow-hidden border border-gray-200 shadow-sm">
+                    <!-- Header bandı -->
+                    <div class="bg-indigo-600 text-white flex justify-between items-center px-4 py-2.5">
+                        <span class="font-bold text-sm tracking-wide uppercase" id="bc-baslik">—</span>
+                        <span class="text-sm font-medium opacity-90" id="bc-baslik2">—</span>
+                    </div>
+                    <!-- İçerik -->
+                    <div class="bg-white px-4 py-4 flex gap-4 items-center">
+                        <canvas id="bc-qr" width="110" height="110" class="rounded shrink-0"></canvas>
+                        <div class="flex flex-col gap-1 min-w-0">
+                            <div class="text-2xl font-bold text-gray-900" id="bc-raf">—</div>
+                            <div class="text-sm font-semibold text-gray-700" id="bc-isim">—</div>
+                            <div class="text-xs text-gray-500" id="bc-sicil">—</div>
+                            <div class="text-xs text-gray-500" id="bc-tarih">—</div>
+                            <div class="text-xs text-gray-500 font-mono" id="bc-rfid">—</div>
+                        </div>
+                    </div>
+                    <!-- Alt bilgi -->
+                    <div class="bg-gray-50 border-t border-gray-100 px-4 py-2.5">
+                        <p class="text-xs text-gray-400">Bu barkodu okutarak işlem detaylarına erişebilirsiniz.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Login Modal -->
     <div id="login-modal"
         class="fixed inset-0 z-[100] flex items-center justify-center bg-gray-900 bg-opacity-95 hidden">
