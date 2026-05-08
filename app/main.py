@@ -2,11 +2,12 @@ from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
-from sqlalchemy import func, or_
+from sqlalchemy import func, or_, text
 from datetime import datetime, date, timezone, timedelta
 from typing import List, Optional
 import os
 import uuid
+import time
 
 from fastapi.security import OAuth2PasswordRequestForm
 from slowapi import Limiter, _rate_limit_exceeded_handler
@@ -21,6 +22,8 @@ app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 models.Base.metadata.create_all(bind=database.engine)
+
+_startup_time = time.time()
 
 # ---------------------------------------------------------------------------
 # Yardımcı: Audit Log kayıt fonksiyonu
@@ -98,6 +101,70 @@ app.mount("/static", StaticFiles(directory="app/static"), name="static")
 @app.get("/")
 def read_root():
     return FileResponse("app/static/index.html")
+
+# ---------------------------------------------------------------------------
+# Health Check
+# ---------------------------------------------------------------------------
+
+@app.get("/api/health")
+def health_check():
+    """
+    Kimlik doğrulama gerektirmeden sistemin genel sağlık durumunu döndürür.
+    Veritabanı bağlantısını test eder ve temel sistem metriklerini raporlar.
+    """
+    now = datetime.now(timezone.utc)
+    uptime_seconds = int(time.time() - _startup_time)
+    hours, remainder = divmod(uptime_seconds, 3600)
+    minutes, seconds = divmod(remainder, 60)
+    uptime_str = f"{hours}sa {minutes}dk {seconds}sn"
+
+    # Veritabanı bağlantı kontrolü
+    db_status = "healthy"
+    db_latency_ms = None
+    db_error = None
+    try:
+        db = database.SessionLocal()
+        t0 = time.time()
+        db.execute(text("SELECT 1"))
+        db_latency_ms = round((time.time() - t0) * 1000, 2)
+        db.close()
+    except Exception as e:
+        db_status = "unhealthy"
+        db_error = str(e)
+
+    # Tablo satır sayıları
+    table_counts = {}
+    try:
+        db = database.SessionLocal()
+        table_counts = {
+            "calisanlar": db.query(models.Calisan).count(),
+            "kiyafetler": db.query(models.Kiyafet).count(),
+            "kirli_bekleyen": db.query(models.Kirli_Kiyafet).count(),
+            "temiz_rafta": db.query(models.Temiz_Kiyafet).count(),
+            "teslim_edilmis": db.query(models.Teslim_Edilen).count(),
+            "kullanicilar": db.query(models.User).count(),
+        }
+        db.close()
+    except Exception:
+        pass
+
+    overall = "healthy" if db_status == "healthy" else "unhealthy"
+
+    result = {
+        "status": overall,
+        "timestamp": now.isoformat(),
+        "uptime": uptime_str,
+        "uptime_seconds": uptime_seconds,
+        "database": {
+            "status": db_status,
+            "latency_ms": db_latency_ms,
+        },
+        "table_counts": table_counts,
+    }
+    if db_error:
+        result["database"]["error"] = db_error
+
+    return result
 
 # ---------------------------------------------------------------------------
 # Auth
