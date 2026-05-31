@@ -23,6 +23,16 @@ Nginx dışarıdan gelen tüm HTTP/HTTPS isteklerini karşılar ve `web` servisi
 ### `app/database.py`
 PostgreSQL bağlantısını `DATABASE_URL` ortam değişkeninden okur. `SessionLocal` ile her endpoint çağrısı için izole bir veritabanı oturumu açar; `finally` bloğuyla kapatır. `pool_pre_ping=True` sayesinde bağlantı kopuklarını otomatik algılar.
 
+### `app/exceptions.py`
+Projenin tüm hata (exception) yapısını yönetir. `AppException` isimli temel bir sınıf üzerinden `{"error": {"code": "...", "message": "..."}}` formatında standartlaştırılmış hatalar üretilir.
+
+### `app/modules/`
+Tüm özellikler Service ve Repository katmanlarına bölünmüştür:
+- **Repository Katmanı:** Veritabanı sorguları (SQLAlchemy).
+- **Service Katmanı:** İş mantığı (Business logic).
+- **Router Katmanı:** HTTP İstek / Yanıt karşılama.
+(Örn: `auth`, `islem`, `kullanici`, `kiyafet`, `calisan`, `audit` modülleri bu yapıda kurgulanmıştır.)
+
 ### `app/models.py`
 SQLAlchemy ORM tablo tanımları:
 
@@ -120,13 +130,15 @@ Gerçek format: `f"{harf}{kat}{kompartiman}"` — örn. `"A31"` (A rafı, 3. kat
 
 ---
 
-## Güvenlik Katmanları
+## Güvenlik Katmanları (Faz 2 Vibecoding Standartları)
 
+- **XSS Koruması:** `innerHTML` kullanımları tamamen yasaklanmış ve sıfırlanmıştır. Tüm dinamik içerikler DOM Helper (`document.createElement` / `textContent`) mimarisiyle oluşturulmaktadır.
+- **Token Güvenliği:** Token'ların `localStorage` üzerinde saklanması iptal edilmiştir. Sistem memory-only state (`AppState`) ve Silent Token Refresh mekanizması ile çalışmaktadır.
+- **JWT RS256:** HMAC (HS256) yerine Asimetrik RS256 (Private/Public Key) şifrelemesi kullanılmaktadır.
+- **CSRF ve Güvenlik Başlıkları:** `Double Submit Cookie` mantığı ile CSRF koruması aktiftir. `SecurityHeadersMiddleware` ile CSP, X-Frame-Options gibi başlıklar zorunlu kılınmıştır.
 - **Rate Limiting:** `slowapi` ile IP başına istek sınırı (`/api/token`: 10/dk, `/api/islem/*`: 60/dk)
-- **JWT:** Her korumalı endpoint `Authorization: Bearer <token>` başlığı gerektirir
-- **RBAC:** Admin-only endpoint'ler `require_role("admin")` dependency'si ile korunur
-- **Audit Log:** Kirli giriş, temizlendi, teslim, kullanıcı yönetimi işlemleri `audit_logs` tablosuna işlenir (kullanıcı adı + IP)
-- **Nginx:** Uygulamanın doğrudan internet erişimi engellenir; tüm trafik proxy üzerinden geçer
+- **Hesap Kilitleme:** 5 hatalı şifre denemesinde hesap 15 dakika boyunca kilitlenir.
+- **Nginx & Docker:** Uygulamanın doğrudan internet erişimi engellenir. Dockerfile non-root (`appuser`) profili ile çalıştırılmaktadır.
 
 ---
 

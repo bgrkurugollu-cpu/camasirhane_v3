@@ -6,27 +6,29 @@ LaundroStar, fabrikaların ve işletmelerin çamaşırhane süreçlerini otomati
 
 | Katman | Teknoloji |
 |---|---|
-| **Backend** | Python 3.11, FastAPI |
+| **Backend** | Python 3.11, FastAPI (Modüler yapı: Service & Repository Pattern) |
 | **Veritabanı** | PostgreSQL 16 (Alpine), SQLAlchemy ORM |
-| **Güvenlik** | JWT (JSON Web Tokens), bcrypt (şifre hashleme), slowapi (rate limiting) |
+| **Güvenlik** | JWT RS256, memory-only state token (localStorage iptali), XSS korumalı DOM Helpers (innerHTML sıfır), CSRF Double Submit |
 | **Frontend** | HTML5, Tailwind CSS, Vanilla JavaScript, Chart.js |
 | **Proxy / TLS** | Nginx (HTTP→HTTPS yönlendirme, self-signed TLS) |
-| **Konteynerizasyon** | Docker, Docker Compose (3 servis: db, web, nginx) |
+| **Konteynerizasyon** | Docker (Multi-stage, non-root user), Docker Compose (healthcheck dahil) |
 
 ## Proje Yapısı
 
 ```
 camasirhane/
 ├── app/
-│   ├── main.py         # API uç noktaları ve iş mantığı
+│   ├── main.py         # API uç noktaları
 │   ├── models.py       # SQLAlchemy veritabanı tablo tanımlamaları
 │   ├── schemas.py      # Pydantic veri doğrulama ve yanıt modelleri
-│   ├── security.py     # JWT, RBAC ve şifre yönetimi
+│   ├── security.py     # JWT RS256, RBAC ve şifre yönetimi
 │   ├── database.py     # Veritabanı bağlantısı ve oturum yönetimi
+│   ├── exceptions.py   # Standart Hata Hiyerarşisi (AppException)
+│   ├── modules/        # Service ve Repository Katmanları (auth, islem, kullanici vb.)
 │   └── static/         # Frontend dosyaları (index.html, app.js, style.css)
 ├── nginx/
 │   ├── nginx.conf      # Nginx proxy ve TLS konfigürasyonu
-│   └── certs/          # TLS sertifika dosyaları (gitignored)
+│   └── certs/          # TLS sertifika dosyaları
 ├── docs/               # Proje dokümantasyonları
 ├── .env.example        # Ortam değişkenleri şablonu
 ├── Dockerfile          # Web servisi imaj kuralları
