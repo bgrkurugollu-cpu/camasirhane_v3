@@ -1,4 +1,5 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
+import re
 from datetime import datetime
 from typing import Optional
 
@@ -84,12 +85,46 @@ class UserCreate(BaseModel):
     email: Optional[str] = None
     phone: Optional[str] = None
 
+    @field_validator('password')
+    @classmethod
+    def validate_password_strength(cls, v):
+        if not v:
+            return v
+        if len(v) < 12:
+            raise ValueError("Şifre en az 12 karakter olmalıdır.")
+        if not re.search(r"[A-Z]", v):
+            raise ValueError("Şifre en az bir büyük harf içermelidir.")
+        if not re.search(r"[a-z]", v):
+            raise ValueError("Şifre en az bir küçük harf içermelidir.")
+        if not re.search(r"\d", v):
+            raise ValueError("Şifre en az bir rakam içermelidir.")
+        if not re.search(r"[!@#$%^&*(),.?\":{}|<>]", v):
+            raise ValueError("Şifre en az bir özel karakter içermelidir.")
+        return v
+
 class UserProfileUpdate(BaseModel):
     email: Optional[str] = None
     phone: Optional[str] = None
     title: Optional[str] = None
     company: Optional[str] = None
     password: Optional[str] = None
+
+    @field_validator('password')
+    @classmethod
+    def validate_password_strength(cls, v):
+        if v is None:
+            return v
+        if len(v) < 12:
+            raise ValueError("Şifre en az 12 karakter olmalıdır.")
+        if not re.search(r"[A-Z]", v):
+            raise ValueError("Şifre en az bir büyük harf içermelidir.")
+        if not re.search(r"[a-z]", v):
+            raise ValueError("Şifre en az bir küçük harf içermelidir.")
+        if not re.search(r"\d", v):
+            raise ValueError("Şifre en az bir rakam içermelidir.")
+        if not re.search(r"[!@#$%^&*(),.?\":{}|<>]", v):
+            raise ValueError("Şifre en az bir özel karakter içermelidir.")
+        return v
 
     class Config:
         from_attributes = True

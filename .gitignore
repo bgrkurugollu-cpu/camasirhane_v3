@@ -7,3 +7,5 @@ data/
 *.db
 .DS_Store
 app/static/avatars/
+__pycache__/
+refactor_frontend*.py

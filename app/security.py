@@ -9,10 +9,23 @@ from sqlalchemy.orm import Session
 
 from . import models, database
 
-# Config – ortam değişkenlerinden okunur, SECRET_KEY yoksa uygulama başlamaz
-SECRET_KEY = os.environ["SECRET_KEY"]
-ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
-ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "1440"))
+# Config – Faz 1 RS256 için private ve public key
+PRIVATE_KEY_PATH = os.getenv("PRIVATE_KEY_PATH", "certs/private_key.pem")
+PUBLIC_KEY_PATH = os.getenv("PUBLIC_KEY_PATH", "certs/public_key.pem")
+
+try:
+    with open(PRIVATE_KEY_PATH, "r") as f:
+        PRIVATE_KEY = f.read()
+    with open(PUBLIC_KEY_PATH, "r") as f:
+        PUBLIC_KEY = f.read()
+except FileNotFoundError:
+    # Test ortamları veya anahtar bulunamadığında hata fırlatmamak için fallback
+    PRIVATE_KEY = "missing_key"
+    PUBLIC_KEY = "missing_key"
+
+ALGORITHM = "RS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "15"))
+REFRESH_TOKEN_EXPIRE_DAYS = int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", "7"))
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/token")
@@ -29,16 +42,26 @@ def get_password_hash(password):
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     """
-    Başarılı login sonrasında, kullanıcının bilgileri (data) ile süreli bir JWT token oluşturur.
-    Bu token Client(App.js) tarafında localStorage'da saklanır ve sonraki isteklerde Header'da gönderilir.
+    Başarılı login sonrasında, kullanıcının bilgileri (data) ile süreli bir JWT access token oluşturur.
     """
     to_encode = data.copy()
     if expires_delta:
         expire = datetime.now(timezone.utc) + expires_delta
     else:
-        expire = datetime.now(timezone.utc) + timedelta(minutes=15)
-    to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+        expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    to_encode.update({"exp": expire, "type": "access"})
+    encoded_jwt = jwt.encode(to_encode, PRIVATE_KEY, algorithm=ALGORITHM)
+    return encoded_jwt
+
+def create_refresh_token(data: dict, expires_delta: Optional[timedelta] = None):
+    """Refresh token oluşturur."""
+    to_encode = data.copy()
+    if expires_delta:
+        expire = datetime.now(timezone.utc) + expires_delta
+    else:
+        expire = datetime.now(timezone.utc) + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+    to_encode.update({"exp": expire, "type": "refresh"})
+    encoded_jwt = jwt.encode(to_encode, PRIVATE_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
 def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(database.get_db)):
@@ -54,9 +77,10 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
         headers={"WWW-Authenticate": "Bearer"},
     )
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        payload = jwt.decode(token, PUBLIC_KEY, algorithms=[ALGORITHM])
         username: str = payload.get("sub")
-        if username is None:
+        token_type: str = payload.get("type")
+        if username is None or token_type != "access":
             raise credentials_exception
     except JWTError:
         raise credentials_exception

@@ -38,6 +38,10 @@ class User(Base):
     title = Column(String, nullable=True)
     company = Column(String, nullable=True)
     profile_photo = Column(String, nullable=True)
+    
+    # Security fields
+    failed_login_count = Column(Integer, default=0)
+    locked_until = Column(DateTime(timezone=True), nullable=True)
 
 class Calisan(Base):
     """

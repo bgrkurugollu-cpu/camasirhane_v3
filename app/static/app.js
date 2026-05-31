@@ -1,17 +1,72 @@
+
+// DOM Helper for XSS protection
+function createEl(tag, className = '', textContent = '') {
+    const el = document.createElement(tag);
+    if (className) el.className = className;
+    if (textContent) el.textContent = textContent;
+    return el;
+}
+
+
+// Faz 4 & Faz 5: apiFetch wrapper ve AppState (localStorage iptal)
+const AppState = { token: null };
+
+async function apiFetch(url, options = {}) {
+    options.headers = options.headers || {};
+    const token = AppState.token;
+    if (token) {
+        options.headers['Authorization'] = `Bearer ${token}`;
+    }
+    
+    // CSRF Token
+    const csrfMatch = document.cookie.match(/csrf_token=([^;]+)/);
+    if (csrfMatch && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(options.method?.toUpperCase())) {
+        options.headers['x-csrf-token'] = csrfMatch[1];
+    }
+    
+    let response = await fetch(url, options);
+    
+    if (response.status === 401 && !url.includes('/auth/token') && !url.includes('/auth/refresh')) {
+        const refreshRes = await fetch('/api/v1/auth/refresh', { method: 'POST' });
+        if (refreshRes.ok) {
+            const data = await refreshRes.json();
+            AppState.token = data.access_token;
+            options.headers['Authorization'] = `Bearer ${data.access_token}`;
+            response = await fetch(url, options);
+        } else {
+            AppState.token = null;
+            window.location.reload();
+        }
+    }
+    return response;
+}
+
+
 let currentUserRole = null;
 let historyChartInstance = null;
 let shelfChartInstance = null;
 let currentChartPeriod = 'weekly';
 let html5QrcodeScanner = null;
 
+
 document.addEventListener('DOMContentLoaded', async () => {
-    const token = localStorage.getItem('token');
+    // Sayfa yüklendiğinde refresh token ile access token almayı dene
+    try {
+        const refreshRes = await fetch('/api/v1/auth/refresh', { method: 'POST' });
+        if (refreshRes.ok) {
+            const data = await refreshRes.json();
+            AppState.token = data.access_token;
+        }
+    } catch (e) {}
+
+    const token = AppState.token;
     
     if (!token) {
         showLoginModal();
     } else {
         await fetchUserInfo();
     }
+
 
     // Navigation routing
     document.querySelectorAll('.nav-btn').forEach(btn => {
@@ -125,11 +180,11 @@ async function submitIslem(e) {
     const sicil_numarasi = document.getElementById('sicil_numarasi').value;
 
     try {
-        let endpoint = '/api/islem';
+        let endpoint = '/api/v1/islem';
         let payload = { islem_tipi, rfid_tag };
 
         if (islem_tipi === 'eslestirme') {
-            endpoint = '/api/kiyafet';
+            endpoint = '/api/v1/kiyafet';
             payload = { 
                 rfid_tag, 
                 sicil_numarasi,
@@ -175,7 +230,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!sicil) return;
 
             try {
-                const res = await fetchWithAuth(`/api/calisan/${sicil}`);
+                const res = await fetchWithAuth(`/api/v1/calisan/${sicil}`);
                 const kisiAd = document.getElementById('kisi_ad');
                 const kisiSoyad = document.getElementById('kisi_soyad');
                 const kisiCinsiyet = document.getElementById('kisi_cinsiyet');
@@ -278,7 +333,7 @@ function stopScanner() {
 
 async function loadDashboard() {
     try {
-        const res = await fetchWithAuth('/api/stats');
+        const res = await fetchWithAuth('/api/v1/stats');
         const data = await res.json();
         document.getElementById('stat-kirli').innerText = data.kirli_bugun;
         document.getElementById('stat-temiz').innerText = data.temiz_bugun;
@@ -294,7 +349,7 @@ async function loadDashboard() {
 
 async function loadHistoryChart(period) {
     try {
-        const res = await fetchWithAuth(`/api/stats/history?period=${period}`);
+        const res = await fetchWithAuth(`/api/v1/stats/history?period=${period}`);
         if (!res.ok) return;
         const data = await res.json();
         
@@ -397,7 +452,7 @@ function renderChart(data) {
 
 async function loadShelfChart() {
     try {
-        const res = await fetchWithAuth('/api/stats/raflar');
+        const res = await fetchWithAuth('/api/v1/stats/raflar');
         if (!res.ok) return;
         const data = await res.json();
         
@@ -490,7 +545,7 @@ async function setupTableView(type) {
         'teslim': 'Geçmiş Teslim Edilenler',
         'kiyafet': 'RFID Eşleştirme Tablosu'
     };
-    document.getElementById('page-title').innerText = titles[type];
+    document.getElementById('page-title').textContent = titles[type];
 
     const islemTh = document.getElementById('islem-th');
     const idTh = document.getElementById('th-islem-id');
@@ -520,7 +575,13 @@ async function setupTableView(type) {
     }
 
     const tbody = document.getElementById('tablo-body');
-    tbody.innerHTML = '<tr><td colspan="5" class="text-center py-8"><i class="fas fa-spinner fa-spin text-2xl text-indigo-500"></i></td></tr>';
+    tbody.textContent = ''; // clear
+    const trLoading = createEl('tr');
+    const tdLoading = createEl('td', 'text-center py-8');
+    tdLoading.colSpan = 5;
+    tdLoading.textContent = 'Yükleniyor...';
+    trLoading.appendChild(tdLoading);
+    tbody.appendChild(trLoading);
 
     try {
         if (type === 'kiyafet') {
@@ -528,53 +589,74 @@ async function setupTableView(type) {
             return;
         }
 
-        const res = await fetchWithAuth(`/api/tablo/${type}`);
+        const res = await apiFetch(`/api/v1/tablo/${type}`);
         const data = await res.json();
 
+        tbody.textContent = '';
         if (data.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="5" class="text-center py-8 text-gray-500">Kayıt bulunamadı.</td></tr>';
+            const trEmpty = createEl('tr');
+            const tdEmpty = createEl('td', 'text-center py-8 text-gray-500', 'Kayıt bulunamadı.');
+            tdEmpty.colSpan = 5;
+            trEmpty.appendChild(tdEmpty);
+            tbody.appendChild(trEmpty);
             return;
         }
 
-        tbody.innerHTML = data.map(row => {
-            let actionBtn = '';
-            let rafBadge = '';
+        data.forEach(row => {
+            const tr = createEl('tr', 'hover:bg-gray-50 transition-colors');
             
-            if (type === 'kirli') {
-                actionBtn = `<td class="py-4 px-6 text-right border-b border-gray-100 whitespace-nowrap">
-                    <button onclick="onaylaIslem(${row.islem_id})" class="bg-green-500 hover:bg-green-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-colors shadow-sm">
-                        <i class="fas fa-check mr-1"></i> Temizlendi
-                    </button>
-                </td>`;
-            } else if (type === 'temiz') {
-                actionBtn = `<td class="py-4 px-6 text-right border-b border-gray-100 whitespace-nowrap">
-                    <button onclick="teslimEt(${row.islem_id})" class="bg-indigo-500 hover:bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-colors shadow-sm mr-2">
-                        <i class="fas fa-box-open mr-1"></i> Teslim Et
-                    </button>
-                    <button onclick="yazdirBarkod('${row.raf_id || '?'}', '${row.sicil_numarasi || ''}', '${(row.ad_soyad || '').replace(/'/g, "\\'")}', '${row.zaman_damgasi}', '${row.rfid_tag || ''}')" class="bg-gray-800 hover:bg-gray-900 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-colors shadow-sm">
-                        <i class="fas fa-barcode mr-1"></i> Barkod
-                    </button>
-                </td>`;
-                rafBadge = `<td class="py-4 px-6 border-b border-gray-100 text-center"><span class="bg-yellow-100 text-yellow-800 px-2 py-1 rounded text-xs font-bold border border-yellow-200">Raf ${row.raf_id || '?'}</span></td>`;
-            } else {
-                actionBtn = `<td style="display:none;" class="border-b border-gray-100"></td>`;
+            const tdId = createEl('td', 'py-4 px-6 font-medium text-gray-900 border-b border-gray-100', `#${row.islem_id}`);
+            const tdRfid = createEl('td', 'py-4 px-6 border-b border-gray-100', row.rfid_tag || '-');
+            
+            const tdSicil = createEl('td', 'py-4 px-6 border-b border-gray-100');
+            const spanSicil = createEl('span', 'bg-indigo-100 text-indigo-800 px-2 py-1 rounded text-xs font-bold border border-indigo-200', row.sicil_numarasi || '-');
+            tdSicil.appendChild(spanSicil);
+
+            const tdAd = createEl('td', 'py-4 px-6 border-b border-gray-100 whitespace-nowrap', row.ad_soyad || '-');
+            
+            tr.appendChild(tdId);
+            tr.appendChild(tdRfid);
+            tr.appendChild(tdSicil);
+            tr.appendChild(tdAd);
+
+            if (type === 'temiz') {
+                const tdRaf = createEl('td', 'py-4 px-6 border-b border-gray-100 text-center');
+                const spanRaf = createEl('span', 'bg-yellow-100 text-yellow-800 px-2 py-1 rounded text-xs font-bold border border-yellow-200', `Raf ${row.raf_id || '?'}`);
+                tdRaf.appendChild(spanRaf);
+                tr.appendChild(tdRaf);
             }
 
-            return `
-            <tr class="hover:bg-gray-50 transition-colors">
-                <td class="py-4 px-6 font-medium text-gray-900 border-b border-gray-100">#${row.islem_id}</td>
-                <td class="py-4 px-6 border-b border-gray-100">${row.rfid_tag || '-'}</td>
-                <td class="py-4 px-6 border-b border-gray-100"><span class="bg-indigo-100 text-indigo-800 px-2 py-1 rounded text-xs font-bold border border-indigo-200">${row.sicil_numarasi || '-'}</span></td>
-                <td class="py-4 px-6 border-b border-gray-100 whitespace-nowrap">${row.ad_soyad || '-'}</td>
-                ${type === 'temiz' ? rafBadge : ''}
-                <td class="py-4 px-6 text-gray-500 text-xs border-b border-gray-100">${new Date(row.zaman_damgasi).toLocaleString('tr-TR')}</td>
-                ${actionBtn}
-            </tr>
-            `;
-        }).join('');
+            const formatZaman = row.zaman_damgasi ? new Date(row.zaman_damgasi).toLocaleString('tr-TR') : '';
+            const tdZaman = createEl('td', 'py-4 px-6 text-gray-500 text-xs border-b border-gray-100', formatZaman);
+            tr.appendChild(tdZaman);
+
+            const tdAction = createEl('td', 'py-4 px-6 text-right border-b border-gray-100 whitespace-nowrap');
+            if (type === 'kirli') {
+                const btnOnay = createEl('button', 'bg-green-500 hover:bg-green-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-colors shadow-sm', 'Temizlendi');
+                btnOnay.onclick = () => onaylaIslem(row.islem_id);
+                tdAction.appendChild(btnOnay);
+            } else if (type === 'temiz') {
+                const btnTeslim = createEl('button', 'bg-indigo-500 hover:bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-colors shadow-sm mr-2', 'Teslim Et');
+                btnTeslim.onclick = () => teslimEt(row.islem_id);
+                tdAction.appendChild(btnTeslim);
+
+                const btnBarkod = createEl('button', 'bg-gray-800 hover:bg-gray-900 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-colors shadow-sm', 'Barkod');
+                btnBarkod.onclick = () => yazdirBarkod(row.raf_id || '?', row.sicil_numarasi || '', row.ad_soyad || '', row.zaman_damgasi || '', row.rfid_tag || '');
+                tdAction.appendChild(btnBarkod);
+            } else {
+                tdAction.style.display = 'none';
+            }
+            tr.appendChild(tdAction);
+            tbody.appendChild(tr);
+        });
 
     } catch (err) {
-        tbody.innerHTML = '<tr><td colspan="5" class="text-center py-8 text-red-500">Veriler yüklenirken hata oluştu!</td></tr>';
+        tbody.textContent = '';
+        const trErr = createEl('tr');
+        const tdErr = createEl('td', 'text-center py-8 text-red-500', 'Veriler yüklenirken hata oluştu!');
+        tdErr.colSpan = 5;
+        trErr.appendChild(tdErr);
+        tbody.appendChild(trErr);
     }
 }
 
@@ -582,7 +664,7 @@ async function onaylaIslem(islem_id) {
     if (!confirm("Kıyafet temizlendi olarak işaretlensin mi?")) return;
 
     try {
-        const res = await fetchWithAuth('/api/islem/onayla', {
+        const res = await fetchWithAuth('/api/v1/islem/onayla', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ islem_id })
@@ -608,7 +690,7 @@ async function teslimEt(islem_id) {
     if (!sicil_numarasi) return;
 
     try {
-        const res = await fetchWithAuth('/api/islem/teslim', {
+        const res = await fetchWithAuth('/api/v1/islem/teslim', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ islem_id, sicil_numarasi })
@@ -739,7 +821,7 @@ async function editKiyafet(old_rfid, old_sicil) {
     }
 
     try {
-        const res = await fetchWithAuth(`/api/kiyafet/${old_rfid}`, {
+        const res = await fetchWithAuth(`/api/v1/kiyafet/${old_rfid}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ rfid_tag: new_rfid.trim(), sicil_numarasi: new_sicil.trim() })
@@ -761,7 +843,7 @@ async function deleteKiyafet(rfid) {
     if (!confirm(`'${rfid}' id'li eşleştirmeyi silmek istediğinize emin misiniz?`)) return;
 
     try {
-        const res = await fetchWithAuth(`/api/kiyafet/${rfid}`, {
+        const res = await fetchWithAuth(`/api/v1/kiyafet/${rfid}`, {
             method: 'DELETE'
         });
 
@@ -818,7 +900,7 @@ async function initMock() {
 // === AUTH & SECURITY ===
 
 async function fetchWithAuth(url, options = {}) {
-    const token = localStorage.getItem('token');
+    const token = AppState.token;
     options.headers = options.headers || {};
     
     if (token) {
@@ -826,7 +908,7 @@ async function fetchWithAuth(url, options = {}) {
     }
     
     const response = await fetch(url, options);
-    if (response.status === 401 && !url.includes('/api/token')) {
+    if (response.status === 401 && !url.includes('/api/v1/auth/token')) {
         logout();
         throw new Error('Unauthorized');
     }
@@ -835,7 +917,7 @@ async function fetchWithAuth(url, options = {}) {
 
 async function fetchUserInfo() {
     try {
-        const res = await fetchWithAuth('/api/users/me');
+        const res = await fetchWithAuth('/api/v1/users/me');
         if (res.ok) {
             const user = await res.json();
             currentUserRole = user.role;
@@ -888,7 +970,7 @@ async function handleLogin(e) {
     const username = document.getElementById('login-username').value;
     const password = document.getElementById('login-password').value;
     
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Bekleyin...';
+    btn.textContent = ''; const i=createEl('i','fas fa-spinner fa-spin mr-2'); btn.appendChild(i); btn.appendChild(document.createTextNode(' Bekleyin...'));
     btn.disabled = true;
     errObj.classList.add('hidden');
     
@@ -897,7 +979,7 @@ async function handleLogin(e) {
         params.append('username', username);
         params.append('password', password);
 
-        const res = await fetch('/api/token', {
+        const res = await apiFetch('/api/v1/auth/token', {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
             body: params
@@ -905,7 +987,7 @@ async function handleLogin(e) {
         
         if (res.ok) {
             const data = await res.json();
-            localStorage.setItem('token', data.access_token);
+            
             document.getElementById('login-password').value = '';
             await fetchUserInfo();
         } else {
@@ -916,7 +998,7 @@ async function handleLogin(e) {
         errObj.innerText = "Sunucuya bağlanılamadı!";
         errObj.classList.remove('hidden');
     } finally {
-        btn.innerHTML = '<i class="fas fa-lock mr-2"></i> Giriş Yap';
+        btn.textContent = ''; const i=createEl('i','fas fa-lock mr-2'); btn.appendChild(i); btn.appendChild(document.createTextNode(' Giriş Yap'));
         btn.disabled = false;
     }
 }
@@ -943,7 +1025,7 @@ document.addEventListener('click', function(event) {
 
 function logout(e) {
     if (e) e.preventDefault();
-    localStorage.removeItem('token');
+    
     currentUserRole = null;
     document.getElementById('user-dropdown').classList.add('hidden');
     showLoginModal();
@@ -960,7 +1042,7 @@ async function showProfile() {
     
     // Fetch latest user data
     try {
-        const res = await fetchWithAuth('/api/users/me');
+        const res = await fetchWithAuth('/api/v1/users/me');
         if (res.ok) {
             const data = await res.json();
             document.getElementById('profile-display-name').innerText = data.username.toUpperCase();
@@ -1009,8 +1091,8 @@ async function handlePhotoSelect(event) {
     formData.append("file", file);
     
     try {
-        const token = localStorage.getItem('token');
-        const res = await fetch('/api/users/me/photo', {
+        const token = AppState.token;
+        const res = await apiFetch('/api/v1/users/me/photo', {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${token}`
@@ -1054,7 +1136,7 @@ async function handleProfileUpdate(e) {
     };
 
     try {
-        const res = await fetchWithAuth('/api/users/me', {
+        const res = await fetchWithAuth('/api/v1/users/me', {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
@@ -1089,7 +1171,7 @@ async function loadAdminUsers() {
     tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-gray-500"><i class="fas fa-spinner fa-spin mr-2"></i>Kullanıcılar yükleniyor...</td></tr>';
     
     try {
-        const res = await fetchWithAuth('/api/users');
+        const res = await fetchWithAuth('/api/v1/users');
         if (res.ok) {
             const users = await res.json();
             
@@ -1139,7 +1221,7 @@ async function handleCreateUser(e) {
     
     const btn = document.getElementById('btn-create-user');
     const originalText = btn.innerHTML;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Oluşturuluyor...';
+    btn.textContent = ''; const i=createEl('i','fas fa-spinner fa-spin mr-2'); btn.appendChild(i); btn.appendChild(document.createTextNode(' Oluşturuluyor...'));
     btn.disabled = true;
     
     const payload = {
@@ -1151,7 +1233,7 @@ async function handleCreateUser(e) {
     };
     
     try {
-        const res = await fetchWithAuth('/api/users', {
+        const res = await fetchWithAuth('/api/v1/users', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
@@ -1180,7 +1262,7 @@ async function deleteUser(userId, username) {
     }
     
     try {
-        const res = await fetchWithAuth(`/api/users/${userId}`, {
+        const res = await fetchWithAuth(`/api/v1/users/${userId}`, {
             method: 'DELETE'
         });
         
@@ -1213,51 +1295,69 @@ const ACTION_LABELS = {
 };
 
 async function loadAuditLogs() {
-    const tbody = document.getElementById('audit-log-body');
-    tbody.innerHTML = '<tr><td colspan="6" class="text-center py-6"><i class="fas fa-spinner fa-spin text-2xl text-indigo-400"></i></td></tr>';
-    
-    const userFilter   = document.getElementById('audit-filter-user')?.value.trim() || '';
-    const actionFilter = document.getElementById('audit-filter-action')?.value || '';
-    
-    let url = '/api/audit-logs?limit=200';
-    if (userFilter)   url += `&username=${encodeURIComponent(userFilter)}`;
-    if (actionFilter) url += `&action=${encodeURIComponent(actionFilter)}`;
-    
+    const tbody = document.getElementById('audit-table-body');
+    if (!tbody) return;
+
+    tbody.textContent = '';
+    const trLoading = createEl('tr');
+    const tdLoading = createEl('td', 'text-center py-6', 'Yükleniyor...');
+    tdLoading.colSpan = 6;
+    trLoading.appendChild(tdLoading);
+    tbody.appendChild(trLoading);
+
     try {
-        const res = await fetchWithAuth(url);
+        const res = await apiFetch('/api/v1/audit-logs?limit=200');
         if (!res.ok) {
-            tbody.innerHTML = '<tr><td colspan="6" class="text-center py-6 text-red-500">Loglar yüklenemedi.</td></tr>';
+            tbody.textContent = '';
+            const trErr = createEl('tr');
+            const tdErr = createEl('td', 'text-center py-6 text-red-500', 'Loglar yüklenemedi.');
+            tdErr.colSpan = 6;
+            trErr.appendChild(tdErr);
+            tbody.appendChild(trErr);
             return;
         }
+
         const logs = await res.json();
-        
+        tbody.textContent = '';
         if (logs.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="6" class="text-center py-6 text-gray-400">Kayıt bulunamadı.</td></tr>';
+            const trEmpty = createEl('tr');
+            const tdEmpty = createEl('td', 'text-center py-6 text-gray-400', 'Kayıt bulunamadı.');
+            tdEmpty.colSpan = 6;
+            trEmpty.appendChild(tdEmpty);
+            tbody.appendChild(trEmpty);
             return;
         }
-        
-        tbody.innerHTML = logs.map(log => {
-            const actionInfo = ACTION_LABELS[log.action] || { label: log.action, badge: 'bg-gray-100 text-gray-700' };
-            const statusBadge = log.status === 'success'
-                ? '<span class="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs font-bold">Başarılı</span>'
-                : '<span class="px-2 py-1 bg-red-100 text-red-800 rounded-full text-xs font-bold">Başarısız</span>';
-            const ts = new Date(log.timestamp).toLocaleString('tr-TR', { dateStyle: 'short', timeStyle: 'medium' });
+
+        logs.forEach(log => {
+            const tr = createEl('tr', 'border-b border-gray-100 hover:bg-gray-50 transition-colors');
+            tr.appendChild(createEl('td', 'py-3 px-4 text-sm text-gray-500', new Date(log.timestamp).toLocaleString('tr-TR')));
+            tr.appendChild(createEl('td', 'py-3 px-4 font-medium text-gray-900', log.username || '-'));
             
-            return `
-            <tr class="hover:bg-gray-50 transition-colors">
-                <td class="py-3 px-4 text-xs text-gray-500 whitespace-nowrap">${ts}</td>
-                <td class="py-3 px-4 font-semibold text-gray-800">${log.username || '-'}</td>
-                <td class="py-3 px-4">
-                    <span class="px-2 py-1 rounded-full text-xs font-bold ${actionInfo.badge}">${actionInfo.label}</span>
-                </td>
-                <td class="py-3 px-4 text-xs text-gray-600 max-w-xs truncate" title="${log.detail || ''}">${log.detail || '-'}</td>
-                <td class="py-3 px-4 text-xs font-mono text-gray-500">${log.ip_address || '-'}</td>
-                <td class="py-3 px-4">${statusBadge}</td>
-            </tr>`;
-        }).join('');
+            const actionTd = createEl('td', 'py-3 px-4 text-sm');
+            const actionSpan = createEl('span', 'bg-gray-100 text-gray-700 px-2 py-1 rounded border border-gray-200 font-mono text-xs', log.action);
+            actionTd.appendChild(actionSpan);
+            tr.appendChild(actionTd);
+            
+            tr.appendChild(createEl('td', 'py-3 px-4 text-sm text-gray-600', log.detail || '-'));
+            tr.appendChild(createEl('td', 'py-3 px-4 text-xs text-gray-400 font-mono', log.ip_address || '-'));
+            
+            const statusTd = createEl('td', 'py-3 px-4 text-right');
+            const isSuccess = log.status === 'success';
+            const sClass = isSuccess ? 'bg-green-100 text-green-700 border-green-200' : 'bg-red-100 text-red-700 border-red-200';
+            const statusSpan = createEl('span', `${sClass} px-2 py-1 rounded text-xs font-bold border`, log.status);
+            statusTd.appendChild(statusSpan);
+            tr.appendChild(statusTd);
+            
+            tbody.appendChild(tr);
+        });
+
     } catch (err) {
-        console.error('Audit log yükleme hatası:', err);
-        tbody.innerHTML = '<tr><td colspan="6" class="text-center py-6 text-red-500">Sunucu bağlantı hatası.</td></tr>';
+        tbody.textContent = '';
+        const trErr = createEl('tr');
+        const tdErr = createEl('td', 'text-center py-6 text-red-500', 'Sunucu bağlantı hatası.');
+        tdErr.colSpan = 6;
+        trErr.appendChild(tdErr);
+        tbody.appendChild(trErr);
     }
 }
 
@@ -1286,8 +1386,8 @@ async function selectRack(letter) {
     // Veriyi çek ve grid'i oluştur
     try {
         const [statsRes, detailRes] = await Promise.all([
-            fetchWithAuth('/api/stats/raflar'),
-            fetchWithAuth(`/api/stats/raf-detay/${letter}`)
+            fetchWithAuth('/api/v1/stats/raflar'),
+            fetchWithAuth(`/api/v1/stats/raf-detay/${letter}`)
         ]);
 
         if (statsRes.ok) rackStatsCache = await statsRes.json();
@@ -1457,7 +1557,7 @@ async function loadKiyafetPage(offset, q) {
 
     tbody.innerHTML = '<tr><td colspan="4" class="text-center py-6"><i class="fas fa-spinner fa-spin text-indigo-500 text-xl"></i></td></tr>';
 
-    const res = await fetchWithAuth(`/api/tablo/kiyafet?${params}`);
+    const res = await fetchWithAuth(`/api/v1/tablo/kiyafet?${params}`);
     const json = await res.json();
     const { total, data } = json;
 
@@ -1541,7 +1641,7 @@ async function rafSearch(query) {
     const missing = LETTERS.filter(l => !rackDetailCache[l]);
     if (missing.length) {
         await Promise.all(missing.map(async l => {
-            const res = await fetchWithAuth(`/api/stats/raf-detay/${l}`);
+            const res = await fetchWithAuth(`/api/v1/stats/raf-detay/${l}`);
             if (res.ok) rackDetailCache[l] = await res.json();
         }));
     }
@@ -1638,10 +1738,10 @@ async function rfidOku() {
 
     // Buton loading
     btn.disabled = true;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin text-xl"></i> Okunuyor...';
+    btn.textContent = ''; const i=createEl('i','fas fa-spinner fa-spin text-xl'); btn.appendChild(i); btn.appendChild(document.createTextNode(' Okunuyor...'));
 
     try {
-        const res = await fetchWithAuth('/api/islem/rfid-oku', { method: 'POST' });
+        const res = await fetchWithAuth('/api/v1/islem/rfid-oku', { method: 'POST' });
         const data = await res.json();
 
         sonucEl.classList.remove('hidden');
@@ -1681,6 +1781,6 @@ async function rfidOku() {
         showToast('RFID okuma hatası!', true);
     } finally {
         btn.disabled = false;
-        btn.innerHTML = '<i class="fas fa-wifi text-xl"></i> RFID Oku';
+        btn.textContent = ''; const i=createEl('i','fas fa-wifi text-xl'); btn.appendChild(i); btn.appendChild(document.createTextNode(' RFID Oku'));
     }
 }
