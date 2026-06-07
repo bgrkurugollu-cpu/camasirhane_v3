@@ -148,12 +148,12 @@ docker compose -p camasirhane_v3 logs --tail=100
 Audit loglarına erişmek için admin yetkisi ve JWT token gerekir:
 
 ```bash
-# Önce token al
-TOKEN=$(curl -sk -X POST https://localhost/api/token \
+# Önce token al (MFA kapalı hesap için; aktifse /api/v1/auth/mfa/verify adımı gerekir)
+TOKEN=$(curl -sk -X POST https://localhost/api/v1/auth/token \
   -d "username=admin&password=admin" | python3 -c "import sys,json; print(json.load(sys.stdin)['access_token'])")
 
 # Audit loglarını getir
-curl -sk -H "Authorization: Bearer $TOKEN" https://localhost/api/audit-logs | python3 -m json.tool
+curl -sk -H "Authorization: Bearer $TOKEN" https://localhost/api/v1/audit-logs | python3 -m json.tool
 
 # Belirli bir aksiyona göre filtrele
 curl -sk -H "Authorization: Bearer $TOKEN" "https://localhost/api/audit-logs?action=LOGIN_FAIL" | python3 -m json.tool

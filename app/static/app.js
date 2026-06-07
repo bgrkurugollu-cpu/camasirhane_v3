@@ -26,7 +26,7 @@ async function apiFetch(url, options = {}) {
     
     let response = await fetch(url, options);
     
-    if (response.status === 401 && !url.includes('/auth/token') && !url.includes('/auth/refresh')) {
+    if (response.status === 401 && !url.includes('/auth/token') && !url.includes('/auth/refresh') && !url.includes('/auth/mfa/verify')) {
         const refreshRes = await fetch('/api/v1/auth/refresh', { method: 'POST' });
         if (refreshRes.ok) {
             const data = await refreshRes.json();
@@ -902,11 +902,21 @@ async function initMock() {
 async function fetchWithAuth(url, options = {}) {
     const token = AppState.token;
     options.headers = options.headers || {};
-    
+
     if (token) {
         options.headers['Authorization'] = `Bearer ${token}`;
     }
-    
+
+    // CSRF: mutating isteklerde cookie'deki csrf_token header olarak gönderilmeli
+    // (Double Submit Cookie — CSRFMiddleware aksi halde 403 döner).
+    const method = (options.method || 'GET').toUpperCase();
+    if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {
+        const csrfMatch = document.cookie.match(/csrf_token=([^;]+)/);
+        if (csrfMatch) {
+            options.headers['x-csrf-token'] = csrfMatch[1];
+        }
+    }
+
     const response = await fetch(url, options);
     if (response.status === 401 && !url.includes('/api/v1/auth/token')) {
         logout();
@@ -987,8 +997,21 @@ async function handleLogin(e) {
         
         if (res.ok) {
             const data = await res.json();
-            
             document.getElementById('login-password').value = '';
+
+            // MFA aktifse ikinci faktör (TOTP) iste — ADR 0007
+            if (data.mfa_required) {
+                const ok = await handleMfaChallenge(data.mfa_token, errObj);
+                if (!ok) return;
+            } else if (data.access_token) {
+                AppState.token = data.access_token;
+            }
+
+            if (data.mfa_enrollment_required) {
+                // Politika gereği admin MFA tanımlamalı; profil/güvenlik ekranına yönlendirme önerisi
+                console.warn('MFA kaydı zorunlu: Lütfen güvenlik ayarlarından MFA etkinleştirin.');
+            }
+
             await fetchUserInfo();
         } else {
             errObj.innerText = "Kullanıcı adı veya şifre hatalı!";
@@ -1001,6 +1024,28 @@ async function handleLogin(e) {
         btn.textContent = ''; const i=createEl('i','fas fa-lock mr-2'); btn.appendChild(i); btn.appendChild(document.createTextNode(' Giriş Yap'));
         btn.disabled = false;
     }
+}
+
+// MFA ikinci faktör akışı (ADR 0007). Authenticator'dan 6 haneli kod ister,
+// /auth/mfa/verify ile doğrular ve access token'ı AppState'e yazar.
+async function handleMfaChallenge(mfaToken, errObj) {
+    const code = window.prompt("İki faktörlü doğrulama: Authenticator uygulamanızdaki 6 haneli kodu girin");
+    if (!code) {
+        if (errObj) { errObj.innerText = "MFA doğrulaması iptal edildi."; errObj.classList.remove('hidden'); }
+        return false;
+    }
+    const verifyRes = await apiFetch('/api/v1/auth/mfa/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mfa_token: mfaToken, code: code.trim() })
+    });
+    if (verifyRes.ok) {
+        const vdata = await verifyRes.json();
+        AppState.token = vdata.access_token;
+        return true;
+    }
+    if (errObj) { errObj.innerText = "Doğrulama kodu hatalı veya süresi dolmuş."; errObj.classList.remove('hidden'); }
+    return false;
 }
 
 function showLoginModal() {
@@ -1295,7 +1340,7 @@ const ACTION_LABELS = {
 };
 
 async function loadAuditLogs() {
-    const tbody = document.getElementById('audit-table-body');
+    const tbody = document.getElementById('audit-log-body');
     if (!tbody) return;
 
     tbody.textContent = '';

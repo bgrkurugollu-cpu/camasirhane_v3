@@ -53,10 +53,11 @@ Pydantic ile istek (Request) ve yanıt (Response) modellerini tanımlar. Her end
 
 ### `app/security.py`
 - Şifreler `passlib[bcrypt]` ile hashlenir.
-- JWT tokenlar `python-jose` ile oluşturulur ve doğrulanır.
-- `SECRET_KEY`, `ALGORITHM` ve token geçerlilik süresi ortam değişkenlerinden okunur.
+- JWT tokenlar `python-jose` ile **RS256** (asimetrik) algoritmasıyla oluşturulur ve doğrulanır (bkz. ADR 0001). HS256/`SECRET_KEY` **kullanılmaz**.
+- Anahtarlar `PRIVATE_KEY_PATH` / `PUBLIC_KEY_PATH` PEM dosyalarından, token süreleri `ACCESS_TOKEN_EXPIRE_MINUTES` / `REFRESH_TOKEN_EXPIRE_DAYS` env'lerinden okunur.
 - `get_current_user` dependency'si tüm korumalı endpointlerde kullanılır.
-- `require_role("admin")` ile rol bazlı erişim kontrolü uygulanır.
+- `require_admin` dependency'si ve servis katmanındaki rol kontrolleri (`current_user.role != "admin"`) ile RBAC uygulanır.
+- **MFA (TOTP):** `pyotp` ile `generate_mfa_secret`, `mfa_provisioning_uri`, `verify_mfa_code` ve kısa ömürlü `create_mfa_token`/`decode_mfa_token` yardımcıları (ADR 0007).
 
 ### `app/main.py`
 Uygulamanın çekirdeği. Temel sabitler ve fonksiyonlar:
@@ -80,41 +81,50 @@ def assign_shelf(db, cinsiyet=None) -> str:
 
 ## API Uç Noktaları (Özet)
 
-### Kimlik Doğrulama
+> Tüm uçlar `/api/v1` öneki altındadır. Tam liste için bkz. `topoloji.md` §3.2. Endpoint adları kod (`app/modules/*/router.py`) ile birebir tutulmuştur.
+
+### Kimlik Doğrulama & MFA
 | Metod | Yol | Açıklama | Rate Limit |
 |---|---|---|---|
-| POST | `/api/token` | Giriş; JWT döner | 10/dakika |
-| POST | `/api/register` | Yeni kullanıcı kaydı | — |
+| POST | `/api/v1/auth/token` | Giriş (1. faktör); MFA aktifse `{mfa_required, mfa_token}` | 10/dakika |
+| POST | `/api/v1/auth/mfa/verify` | Login 2. faktör (TOTP) → access token | — |
+| POST | `/api/v1/auth/mfa/setup` · `/activate` · `/disable` | MFA kayıt/aktivasyon/iptal (ADR 0007) | — |
+| POST | `/api/v1/auth/refresh` · `/logout` | Token yenileme / çıkış | — |
+
+> Self-servis kayıt (`/register`) **yoktur**; kullanıcılar yalnızca admin tarafından `POST /api/v1/users` ile oluşturulur.
 
 ### İşlem (Kıyafet Döngüsü)
 | Metod | Yol | Açıklama | Rate Limit |
 |---|---|---|---|
-| POST | `/api/islem/kirli` | Kirli kıyafet girişi | 60/dakika |
-| POST | `/api/islem/temizlendi` | Kıyafeti temizlendi olarak işaretle, raf ata | 60/dakika |
-| POST | `/api/islem/teslim` | Kıyafeti teslim et | 60/dakika |
-| GET | `/api/islem/rfid-oku` | Rastgele 10 personel için RFID simülasyonu | — |
+| POST | `/api/v1/islem` | Tek uç; gövdedeki `islem_tipi` ∈ {`kirli`,`temiz`,`teslim`} | 60/dakika |
+| POST | `/api/v1/islem/onayla` | Kirli kaydı temizlendi yap, raf ata (yanıt `raf_id` içerir) | 60/dakika |
+| POST | `/api/v1/islem/teslim` | Temiz kaydı personele teslim et (sicil doğrulamalı) | 60/dakika |
+| POST | `/api/v1/islem/rfid-oku` | Rastgele ≤10 kıyafet için kirli sepet simülasyonu | — |
 
 ### Tablo Listeleme
-| Metod | Yol | Açıklama |
-|---|---|---|
-| GET | `/api/tablo/kirli` | Kirli kıyafetler (ad soyad JOIN) |
-| GET | `/api/tablo/temiz` | Temiz kıyafetler (ad soyad JOIN) |
-| GET | `/api/tablo/teslim` | Teslim edilecekler (ad soyad JOIN) |
+| Metod | Yol | Yetki | Açıklama |
+|---|---|---|---|
+| GET | `/api/v1/tablo/kirli` | user/admin | Kirli kıyafetler (ad soyad JOIN) |
+| GET | `/api/v1/tablo/temiz` | user/admin | Temiz kıyafetler (ad soyad JOIN) |
+| GET | `/api/v1/tablo/teslim` | admin | Teslim geçmişi |
+| GET | `/api/v1/tablo/kiyafet` | admin | RFID eşleştirme listesi (arama + sayfalama) |
 
 ### İstatistik ve Raf
 | Metod | Yol | Açıklama |
 |---|---|---|
-| GET | `/api/stats/raflar` | Tüm rafların doluluk özeti |
-| GET | `/api/stats/raf-detay/{harf}` | Belirli bir rafın tüm gözlerinin detayı |
-| GET | `/api/stats/dashboard` | Dashboard istatistikleri |
+| GET | `/api/v1/stats` | Günlük kirli/temiz/teslim sayıları |
+| GET | `/api/v1/stats/raflar` | Tüm rafların doluluk özeti |
+| GET | `/api/v1/stats/raf-detay/{rack_letter}` | Belirli bir rafın tüm gözlerinin detayı |
+| GET | `/api/v1/stats/history?period=weekly\|monthly` | Geçmiş grafik verisi |
 
 ### Yönetim (Admin)
 | Metod | Yol | Açıklama |
 |---|---|---|
-| GET/POST | `/api/calisanlar` | Personel listesi / ekleme |
-| GET/PUT/DELETE | `/api/calisanlar/{id}` | Personel güncelleme / silme |
-| GET/POST | `/api/kiyafetler` | RFID demirbaş listesi / ekleme |
-| GET | `/api/audit-log` | Denetim kaydı |
+| GET/POST | `/api/v1/users` | Kullanıcı listesi / ekleme |
+| PUT/DELETE | `/api/v1/users/{user_id}` | Kullanıcı güncelleme / silme |
+| GET | `/api/v1/calisan/{sicil_numarasi}` | Personel getir |
+| POST/PUT/DELETE | `/api/v1/kiyafet[/{rfid}]` | RFID demirbaş ekle / güncelle / sil |
+| GET | `/api/v1/audit-logs` | Denetim kaydı (filtreli) |
 
 ---
 
@@ -134,10 +144,12 @@ Gerçek format: `f"{harf}{kat}{kompartiman}"` — örn. `"A31"` (A rafı, 3. kat
 
 - **XSS Koruması:** `innerHTML` kullanımları tamamen yasaklanmış ve sıfırlanmıştır. Tüm dinamik içerikler DOM Helper (`document.createElement` / `textContent`) mimarisiyle oluşturulmaktadır.
 - **Token Güvenliği:** Token'ların `localStorage` üzerinde saklanması iptal edilmiştir. Sistem memory-only state (`AppState`) ve Silent Token Refresh mekanizması ile çalışmaktadır.
-- **JWT RS256:** HMAC (HS256) yerine Asimetrik RS256 (Private/Public Key) şifrelemesi kullanılmaktadır.
-- **CSRF ve Güvenlik Başlıkları:** `Double Submit Cookie` mantığı ile CSRF koruması aktiftir. `SecurityHeadersMiddleware` ile CSP, X-Frame-Options gibi başlıklar zorunlu kılınmıştır.
-- **Rate Limiting:** `slowapi` ile IP başına istek sınırı (`/api/token`: 10/dk, `/api/islem/*`: 60/dk)
+- **JWT RS256:** HMAC (HS256) yerine Asimetrik RS256 (Private/Public Key) şifrelemesi kullanılmaktadır (ADR 0001).
+- **Admin MFA (TOTP):** Admin/kullanıcı hesapları için `pyotp` tabanlı iki faktörlü doğrulama. Login 1. faktör (şifre) sonrası MFA aktifse `/auth/mfa/verify` ile TOTP istenir (ADR 0007).
+- **CSRF ve Güvenlik Başlıkları:** `Double Submit Cookie` mantığı ile CSRF koruması aktiftir; `auth/token`, `auth/refresh`, `auth/logout`, `auth/mfa/verify` muaftır. `SecurityHeadersMiddleware` ile CSP, X-Frame-Options gibi başlıklar zorunlu kılınmıştır.
+- **Rate Limiting:** `slowapi` ile IP başına istek sınırı (`/api/v1/auth/token`: 10/dk, `/api/v1/islem*`: 60/dk).
 - **Hesap Kilitleme:** 5 hatalı şifre denemesinde hesap 15 dakika boyunca kilitlenir.
+- **CORS:** `allow_origins` `CORS_ORIGINS` env'inden okunur; wildcard `*` kullanılmaz.
 - **Nginx & Docker:** Uygulamanın doğrudan internet erişimi engellenir. Dockerfile non-root (`appuser`) profili ile çalıştırılmaktadır.
 
 ---
@@ -160,4 +172,4 @@ docker exec -it camasirhane_db psql -U <kullanici> <veritabani>
 docker-compose restart web
 ```
 
-FastAPI'nin otomatik dokümantasyonu (Swagger UI) geliştirme amaçlı olarak `/docs` adresinde erişilebilir durumdadır. Üretim ortamında bu endpoint devre dışı bırakılmalıdır.
+FastAPI'nin otomatik dokümantasyonu (Swagger UI / ReDoc) **varsayılan olarak kapalıdır**. `app = FastAPI(docs_url=os.getenv("DOCS_URL", None), redoc_url=os.getenv("REDOC_URL", None))` yapılandırması nedeniyle `/docs` ve `/redoc` yalnızca ilgili env değişkenleri açıkça set edildiğinde (ör. geliştirme ortamında `DOCS_URL=/docs`) erişilebilir. Üretimde bu değişkenler set edilmez.

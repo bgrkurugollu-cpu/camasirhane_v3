@@ -18,7 +18,10 @@ def assign_shelf(db: Session, cinsiyet: Optional[str] = None) -> Optional[str]:
 
     occupancy_dict = {raf_id: count for raf_id, count in occupancy}
 
-    if cinsiyet == 'K':
+    # Cinsiyet hem kısa kod ('K'/'E') hem de tam kelime ('Kadın'/'Erkek') olarak gelebilir.
+    # Tek doğru kaynak: baş harf 'K' ise kadın kabul edilir (Kadın -> yalnızca E rafı).
+    is_female = bool(cinsiyet) and str(cinsiyet).strip().upper().startswith('K')
+    if is_female:
         letters = ['E']
     else:
         letters = [l for l in RACK_LETTERS if l != 'E']

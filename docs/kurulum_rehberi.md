@@ -35,12 +35,22 @@ cp .env.example .env
 
 | Değişken | Açıklama |
 |---|---|
-| `SECRET_KEY` | JWT imzalama anahtarı — güçlü, rastgele bir değer girin |
+| `PRIVATE_KEY_PATH` / `PUBLIC_KEY_PATH` | JWT **RS256** anahtar dosyaları (PEM). `openssl` ile üretin (aşağıya bakın). HS256/SECRET_KEY kullanılmaz. |
+| `CORS_ORIGINS` | İzinli origin(ler), virgülle ayrılmış. Wildcard `*` **yasaktır**. |
+| `ADMIN_MFA_REQUIRED` | Admin'ler için MFA kayıt zorunluluğu (`true`/`false`) |
 | `POSTGRES_USER` | PostgreSQL kullanıcı adı |
 | `POSTGRES_PASSWORD` | PostgreSQL şifresi — tahmin edilemez bir değer seçin |
 | `POSTGRES_DB` | Veritabanı adı |
 | `DATABASE_URL` | `postgresql://<user>:<password>@db:5432/<db>` formatında |
 | `TZ` | Zaman dilimi (örn: `Europe/Istanbul`) |
+
+RS256 anahtarlarını üretmek için:
+
+```bash
+mkdir -p certs
+openssl genrsa -out certs/private_key.pem 2048
+openssl rsa -in certs/private_key.pem -pubout -out certs/public_key.pem
+```
 
 > **Güvenlik:** `.env` dosyasını asla versiyon kontrolüne (Git'e) eklemeyin. Bu dosya `.gitignore` içinde listelenmektedir.
 
@@ -87,9 +97,9 @@ Kurulum tamamlandıktan sonra tarayıcınızda şu adresi açın:
 
 ### İlk Kullanıcı Oluşturma
 
-Sistem ilk başlatıldığında veritabanı boştur. Admin kullanıcısı oluşturmak için `/api/register` endpoint'ine veya doğrudan veritabanına bağlanarak kayıt ekleyebilirsiniz.
+Sistem ilk başlatıldığında veritabanı boştur. Self-servis kayıt ucu (`/register`) **bilinçli olarak yoktur**. İlk admin kullanıcısı doğrudan veritabanına bağlanılarak (bcrypt hash ile) oluşturulur; sonraki kullanıcılar admin tarafından `POST /api/v1/users` ile eklenir.
 
-Giriş yaptıktan sonra sağ üst köşedeki profil menüsünden şifrenizi hemen değiştirmeniz önerilir.
+Giriş yaptıktan sonra sağ üst köşedeki profil menüsünden şifrenizi hemen değiştirmeniz ve **MFA'yı etkinleştirmeniz** (admin hesapları için zorunlu politika — ADR 0007) önerilir.
 
 ---
 

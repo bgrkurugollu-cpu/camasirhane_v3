@@ -67,12 +67,14 @@ Kirli bekleyenler, temizlenenler, teslim edilecekler, personel ve RFID listeleri
 
 | Katman | Uygulama |
 |---|---|
-| **Ağ izolasyonu** | Nginx reverse proxy; uygulama doğrudan internete açık değil |
+| **Ağ izolasyonu** | Nginx reverse proxy; uygulama doğrudan internete açık değil; CORS allowlist (wildcard yasak) |
 | **Şifreleme** | HTTPS (TLS 1.2/1.3); tüm trafik şifreli |
-| **Kimlik doğrulama** | JWT tabanlı; token süresi dolduğunda oturum kapanır |
+| **Kimlik doğrulama** | JWT **RS256** (asimetrik); access 15 dk + httpOnly refresh cookie |
+| **İki faktörlü doğrulama (MFA)** | Admin hesapları için TOTP (`pyotp`, RFC 6238) — authenticator uygulaması ile |
 | **Yetkilendirme** | Rol bazlı erişim (RBAC): admin / user |
-| **Brute-force koruması** | IP bazlı rate limiting (slowapi) |
-| **Denetim izi** | Tüm kritik işlemler kullanıcı adı ve IP ile kayıt altında |
+| **Brute-force koruması** | IP bazlı rate limiting (slowapi) + 5 hatada 15 dk hesap kilitleme |
+| **CSRF / Başlıklar** | Double Submit Cookie + CSP, X-Frame-Options, HSTS |
+| **Denetim izi** | Tüm kritik işlemler kullanıcı adı ve IP ile append-only audit log'da |
 
 ---
 

@@ -106,7 +106,7 @@ def process_onay(db: Session, request: Request, req: schemas.IslemOnayRequest, c
         detail=f"İşlem ID: {req.islem_id} | RFID: {kirli_kayit.rfid_tag} onaylandı (Temiz)",
         ip_address=get_client_ip(request), status="success"
     )
-    return {"message": "Kıyafet temizlendi ve teslime hazır.", "yeni_islem_id": yeni_temiz.islem_id}
+    return {"message": "Kıyafet temizlendi ve teslime hazır.", "yeni_islem_id": yeni_temiz.islem_id, "raf_id": yeni_temiz.raf_id}
 
 def process_teslim(db: Session, request: Request, req: schemas.TeslimRequest, current_user: models.User):
     temiz_kayit = repository.get_temiz_kayit_by_id(db, req.islem_id)

@@ -9,3 +9,6 @@ data/
 app/static/avatars/
 __pycache__/
 refactor_frontend*.py
+.coverage
+.venv/
+certs/

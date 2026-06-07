@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
+import os
 import secrets
 from datetime import datetime, timezone
 import time
@@ -15,6 +16,7 @@ from .utils import get_client_ip
 from .exceptions import AppException
 from fastapi import Request
 from fastapi.responses import JSONResponse
+from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from .modules.auth.router import router as auth_router
@@ -24,11 +26,16 @@ from .modules.calisan.router import router as calisan_router
 from .modules.kiyafet.router import router as kiyafet_router
 from .modules.audit.router import router as audit_router
 
-app = FastAPI(title="Çamaşırhane Otomasyon Sistemi API")
+app = FastAPI(
+    title="Çamaşırhane Otomasyon Sistemi API",
+    docs_url=os.getenv("DOCS_URL", None),
+    redoc_url=os.getenv("REDOC_URL", None)
+)
 
+origins = os.getenv("CORS_ORIGINS", "http://localhost").split(",")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -46,7 +53,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 class CSRFMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         if request.method in ["POST", "PUT", "PATCH", "DELETE"]:
-            if request.url.path not in ["/api/v1/auth/token", "/api/v1/auth/refresh", "/api/v1/auth/logout"]:
+            if request.url.path not in ["/api/v1/auth/token", "/api/v1/auth/refresh", "/api/v1/auth/logout", "/api/v1/auth/mfa/verify"]:
                 csrf_cookie = request.cookies.get("csrf_token")
                 csrf_header = request.headers.get("x-csrf-token")
                 if not csrf_cookie or not csrf_header or csrf_cookie != csrf_header:
@@ -81,9 +88,11 @@ async def http_exception_handler(request: Request, exc: StarletteHTTPException):
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    # Pydantic v2, özel validator'lardan gelen hatalarda ctx içine serialize
+    # edilemeyen ValueError objesi koyabilir; jsonable_encoder ile güvenli serialize edilir.
     return JSONResponse(
         status_code=422,
-        content={"error": {"code": "VALIDATION_ERROR", "message": "Girdi doğrulama hatası", "details": exc.errors()}}
+        content={"error": {"code": "VALIDATION_ERROR", "message": "Girdi doğrulama hatası", "details": jsonable_encoder(exc.errors())}}
     )
 
 _startup_time = time.time()
@@ -109,10 +118,12 @@ def health_check():
     db_error = None
     try:
         db = database.SessionLocal()
-        t0 = time.time()
-        db.execute(text("SELECT 1"))
-        db_latency_ms = round((time.time() - t0) * 1000, 2)
-        db.close()
+        try:
+            t0 = time.time()
+            db.execute(text("SELECT 1"))
+            db_latency_ms = round((time.time() - t0) * 1000, 2)
+        finally:
+            db.close()
     except Exception as e:
         db_status = "unhealthy"
         db_error = str(e)
@@ -120,15 +131,17 @@ def health_check():
     table_counts = {}
     try:
         db = database.SessionLocal()
-        table_counts = {
-            "calisanlar": db.query(models.Calisan).count(),
-            "kiyafetler": db.query(models.Kiyafet).count(),
-            "kirli_bekleyen": db.query(models.Kirli_Kiyafet).count(),
-            "temiz_rafta": db.query(models.Temiz_Kiyafet).count(),
-            "teslim_edilmis": db.query(models.Teslim_Edilen).count(),
-            "kullanicilar": db.query(models.User).count(),
-        }
-        db.close()
+        try:
+            table_counts = {
+                "calisanlar": db.query(models.Calisan).count(),
+                "kiyafetler": db.query(models.Kiyafet).count(),
+                "kirli_bekleyen": db.query(models.Kirli_Kiyafet).count(),
+                "temiz_rafta": db.query(models.Temiz_Kiyafet).count(),
+                "teslim_edilmis": db.query(models.Teslim_Edilen).count(),
+                "kullanicilar": db.query(models.User).count(),
+            }
+        finally:
+            db.close()
     except Exception:
         pass
 

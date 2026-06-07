@@ -43,6 +43,10 @@ class User(Base):
     failed_login_count = Column(Integer, default=0)
     locked_until = Column(DateTime(timezone=True), nullable=True)
 
+    # MFA (TOTP) — ADR 0007. mfa_enabled: 0/1 (SQLite uyumlu); mfa_secret: base32 TOTP secret
+    mfa_enabled = Column(Integer, default=0)
+    mfa_secret = Column(String, nullable=True)
+
 class Calisan(Base):
     """
     Fabrikadaki veya tesisteki personeli (işçiyi) temsil eder.

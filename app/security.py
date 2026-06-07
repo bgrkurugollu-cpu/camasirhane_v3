@@ -3,6 +3,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 from jose import JWTError, jwt
 from passlib.context import CryptContext
+import pyotp
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
@@ -27,8 +28,14 @@ ALGORITHM = "RS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "15"))
 REFRESH_TOKEN_EXPIRE_DAYS = int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", "7"))
 
+# MFA (TOTP) yapılandırması — ADR 0007
+MFA_TOKEN_EXPIRE_MINUTES = int(os.getenv("MFA_TOKEN_EXPIRE_MINUTES", "5"))
+MFA_ISSUER = os.getenv("MFA_ISSUER", "LaundroStar")
+# True olduğunda, MFA tanımlamamış admin'ler login yanıtında zorunlu kayıt uyarısı alır.
+ADMIN_MFA_REQUIRED = os.getenv("ADMIN_MFA_REQUIRED", "false").lower() in ("1", "true", "yes", "on")
+
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/token")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/token")
 
 def verify_password(plain_password, hashed_password):
     """
@@ -101,3 +108,52 @@ def require_admin(current_user: models.User = Depends(get_current_user)):
             detail="Bu işlem için yetkiniz yok.",
         )
     return current_user
+
+
+# ---------------------------------------------------------------------------
+# MFA (TOTP) yardımcıları — ADR 0007: Admin İki Faktörlü Kimlik Doğrulama
+# ---------------------------------------------------------------------------
+
+def create_mfa_token(username: str) -> str:
+    """Login'in birinci faktörü (şifre) geçildikten sonra, ikinci faktör (TOTP)
+    adımını köprülemek için kullanılan kısa ömürlü ara token'ı üretir.
+
+    Bu token access token DEĞİLDİR; yalnızca `type='mfa'` taşır ve sadece
+    /auth/mfa/* uçlarında kabul edilir.
+    """
+    expire = datetime.now(timezone.utc) + timedelta(minutes=MFA_TOKEN_EXPIRE_MINUTES)
+    payload = {"sub": username, "type": "mfa", "exp": expire}
+    return jwt.encode(payload, PRIVATE_KEY, algorithm=ALGORITHM)
+
+
+def decode_mfa_token(token: str) -> Optional[str]:
+    """MFA ara token'ını çözer; geçerli ve `type='mfa'` ise username döner, aksi halde None."""
+    try:
+        payload = jwt.decode(token, PUBLIC_KEY, algorithms=[ALGORITHM])
+        if payload.get("type") != "mfa":
+            return None
+        return payload.get("sub")
+    except JWTError:
+        return None
+
+
+def generate_mfa_secret() -> str:
+    """Kullanıcıya özel yeni bir base32 TOTP secret üretir."""
+    return pyotp.random_base32()
+
+
+def mfa_provisioning_uri(secret: str, username: str) -> str:
+    """Authenticator uygulamalarının (Google/Microsoft Authenticator) okuyacağı
+    otpauth:// URI'sini döner. QR koda çevrilerek kullanıcıya gösterilir."""
+    return pyotp.totp.TOTP(secret).provisioning_uri(name=username, issuer_name=MFA_ISSUER)
+
+
+def verify_mfa_code(secret: Optional[str], code: Optional[str]) -> bool:
+    """Verilen 6 haneli TOTP kodunu secret'a karşı doğrular.
+    Saat kayması toleransı için valid_window=1 (±30 sn) uygulanır."""
+    if not secret or not code:
+        return False
+    try:
+        return pyotp.TOTP(secret).verify(str(code).strip(), valid_window=1)
+    except Exception:
+        return False

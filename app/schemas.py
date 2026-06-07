@@ -63,6 +63,23 @@ class Token(BaseModel):
     access_token: str
     token_type: str
 
+
+class MfaVerifyRequest(BaseModel):
+    """Login'in ikinci faktörü: şifre adımından dönen mfa_token + authenticator kodu."""
+    mfa_token: str
+    code: str
+
+
+class MfaCodeRequest(BaseModel):
+    """Oturum açmış kullanıcının MFA aktivasyon/iptal işlemleri için tek kod."""
+    code: str
+
+
+class MfaSetupResponse(BaseModel):
+    """MFA kayıt başlangıcında dönen secret ve otpauth URI (QR için)."""
+    secret: str
+    otpauth_uri: str
+
 class UserResponse(BaseModel):
     id: int
     username: str
