@@ -28,3 +28,19 @@ def setup_logging():
 
 setup_logging()
 logger = structlog.get_logger()
+
+
+def log_critical(event: str, **kwargs):
+    """Operasyonel müdahale gerektiren 'critical' kategorili log üretir.
+
+    Çıktıda `category="critical"` etiketi bulunur; aggregation katmanı (OpenSearch
+    Alerting / Alertmanager) alerting kurallarını bu alana göre kurar. Bkz.
+    topoloji.md §13 'Log Kategorileri ve Alerting'.
+
+    Kullanım örnekleri:
+        - DB erişilemezliği / havuz tükenmesi (OperationalError)
+        - Tekrarlı hesap kilidi (brute-force şüphesi)
+        - Tekrarlı PHOTO_UPLOAD_REJECTED (polyglot/malware şüphesi)
+        - Yakalanmayan istisna kaynaklı HTTP 5xx
+    """
+    logger.critical(event, category="critical", **kwargs)

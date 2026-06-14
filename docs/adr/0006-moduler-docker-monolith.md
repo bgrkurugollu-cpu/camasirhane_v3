@@ -17,5 +17,7 @@ Sistemin kod tabanında **Modüler Monolith** (Router/Service/Repository katmanl
 - **Olumlu:** Geliştiriciler kodu tek bir repo üzerinden (kolay debug ile) yönetebilir. Docker Compose sayesinde tek komutla tüm ortam izole ve standart bir şekilde (bağımlılık zinciri gözetilerek) ayağa kalkar.
 - **Olumsuz:** Uygulamanın bir modülünde meydana gelen kritik bir hata (Memory leak vb.) tüm sistemi etkileyebilir.
 
-## AI Rolü
-Bu tasarım, AI ajanı tarafından Vibe Coding "Boyut 1: Katmanlı Mimari" ve "Boyut 9: Deployment & Docker" standartlarına %100 uyum sağlaması amacıyla önerilmiş, modüller (`app/modules/`) ve `docker-compose.yml` yapılandırması buna göre şekillendirilmiştir.
+## AI Rolü ve İnsan Kararı
+**AI önerisi:** AI ajanı, Vibe Coding "Boyut 1: Katmanlı Mimari" ve "Boyut 9: Deployment & Docker" standartları doğrultusunda kod tarafında Modüler Monolith (Router/Service/Repository), deployment tarafında Multi-Container Docker yapısını önerdi; mikroservis ve tek-parça monolith alternatiflerini gerekçeleriyle eledi.
+
+**İnsan kararı:** Proje sahibi öneriyi kabul etti çünkü (1) Faz 1 yük profili (tek tesis, ~1000 personel — bkz. `topoloji.md §12`) mikroservislerin getireceği network gecikmesi, dağıtık transaction ve DevOps yükünü gereksiz kılıyordu; (2) tek-parça (SQLite + Jinja2) alternatifi güvenlik ve ölçeklenme açısından yetersizdi; (3) Modüler Monolith, AI destekli geliştirmede tek modülün izole değiştirilebilmesini sağlayarak bakım ve devralınabilirliği artırıyordu. Tek modüldeki kritik hatanın tüm sistemi etkileyebileceği riski, deployment basitliği karşısında kabul edilebilir görüldü. (Deployment'ın tesis-başına ayrı kurulum olduğu ADR 0008 ile netleştirilmiştir.)

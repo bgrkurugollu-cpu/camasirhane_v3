@@ -17,5 +17,7 @@ Frontend katmanında hiçbir derleme aşaması (build step) gerektirmeyen **Vani
 - **Olumlu:** Proje tek bir Docker container (FastAPI) üzerinden sunulabilir hale geldi (BFF gereksinimi ortadan kalktı). Geliştirme hızı arttı.
 - **Olumsuz:** Kod tabanı büyüdükçe state yönetimi (AppState) zorlaşabilir. Tip güvenliği (Type Safety) eksikliği runtime hatalarına neden olabilir.
 
-## AI Rolü
-AI ajanı, projenin modüler monolith mimarisine uygun olarak, gereksiz altyapı karmaşasını (over-engineering) önlemek adına bu hafif teknoloji yığınını önermiş ve uygulamıştır. XSS korumaları için özel DOM helper fonksiyonları AI tarafından sisteme dahil edilmiştir.
+## AI Rolü ve İnsan Kararı
+**AI önerisi:** AI ajanı, kurumsal standart olan React+TypeScript yerine derleme adımı gerektirmeyen Vanilla JS + CDN Tailwind yığınını önerdi; gerekçe over-engineering'den kaçınmak ve uygulamayı tek FastAPI container'ından sunulabilir tutmaktı.
+
+**İnsan kararı:** Proje sahibi, kurumsal standarttan bu sapmayı bilinçli olarak kabul etti çünkü (1) LaundroStar bir iç otomasyon/kiosk aracıdır, dışa açık karmaşık bir SPA değildir; (2) ayrı bir Node.js build pipeline + CI adımı, kapalı devre tesis kurulumunda bakım yükü ve bağımlılık riski getirir; (3) tip güvenliği eksikliğinin yaratabileceği runtime hataları, `innerHTML` yasağı + DOM helper (XSS önlemi) ve test coverage (%80) ile telafi edilebilir bulundu. Sapma, ADR olarak kayıt altına alınması koşuluyla onaylandı.

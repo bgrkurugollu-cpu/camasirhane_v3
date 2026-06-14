@@ -98,23 +98,23 @@ laundrostar_nginx → (depends_on: web)
 | POST | `/api/v1/auth/logout` | — | Refresh cookie temizle |
 | GET | `/api/v1/users/me` | user/admin | Kendi profil bilgisi |
 | PUT | `/api/v1/users/me` | user/admin | Profil güncelleme |
-| POST | `/api/v1/users/me/photo` | user/admin | Profil fotoğrafı yükleme (PNG) |
+| POST | `/api/v1/users/me/photo` | user/admin | Profil fotoğrafı yükleme (PNG; magic-byte + boyut doğrulamalı, bkz. §7 Dosya Yükleme Güvenliği) |
 
 #### Kullanıcı Yönetimi (Admin)
 | Metod | Endpoint | Yetki | Açıklama |
 |---|---|---|---|
-| GET | `/api/users` | admin | Tüm kullanıcıları listele |
-| POST | `/api/users` | admin | Yeni kullanıcı oluştur |
-| PUT | `/api/users/{id}` | admin | Kullanıcı güncelle |
-| DELETE | `/api/users/{id}` | admin | Kullanıcı sil |
+| GET | `/api/v1/users` | admin | Tüm kullanıcıları listele |
+| POST | `/api/v1/users` | admin | Yeni kullanıcı oluştur |
+| PUT | `/api/v1/users/{id}` | admin | Kullanıcı güncelle |
+| DELETE | `/api/v1/users/{id}` | admin | Kullanıcı sil |
 
 #### Çalışan & RFID Eşleştirme
 | Metod | Endpoint | Yetki | Açıklama |
 |---|---|---|---|
-| GET | `/api/calisan/{sicil}` | user/admin | Sicil numarasına göre personel getir |
-| POST | `/api/kiyafet` | admin | Yeni RFID–sicil eşleştirmesi ekle |
-| PUT | `/api/kiyafet/{rfid}` | admin | RFID eşleştirmesini güncelle |
-| DELETE | `/api/kiyafet/{rfid}` | admin | RFID eşleştirmesini sil |
+| GET | `/api/v1/calisan/{sicil}` | user/admin | Sicil numarasına göre personel getir |
+| POST | `/api/v1/kiyafet` | admin | Yeni RFID–sicil eşleştirmesi ekle |
+| PUT | `/api/v1/kiyafet/{rfid}` | admin | RFID eşleştirmesini güncelle |
+| DELETE | `/api/v1/kiyafet/{rfid}` | admin | RFID eşleştirmesini sil |
 
 #### İş Akışı / İşlemler
 | Metod | Endpoint | Yetki | Açıklama |
@@ -127,23 +127,23 @@ laundrostar_nginx → (depends_on: web)
 #### İstatistik & Raporlama
 | Metod | Endpoint | Yetki | Açıklama |
 |---|---|---|---|
-| GET | `/api/stats` | user/admin | Günlük kirli/temiz/teslim sayıları |
-| GET | `/api/stats/raflar` | user/admin | Tüm rafların doluluk durumu |
-| GET | `/api/stats/raf-detay/{harf}` | user/admin | Belirli raftaki kıyafet detayları |
-| GET | `/api/stats/history` | user/admin | Haftalık/aylık geçmiş grafik verisi |
+| GET | `/api/v1/stats` | user/admin | Günlük kirli/temiz/teslim sayıları |
+| GET | `/api/v1/stats/raflar` | user/admin | Tüm rafların doluluk durumu |
+| GET | `/api/v1/stats/raf-detay/{harf}` | user/admin | Belirli raftaki kıyafet detayları |
+| GET | `/api/v1/stats/history` | user/admin | Haftalık/aylık geçmiş grafik verisi |
 
 #### Tablolar
 | Metod | Endpoint | Yetki | Açıklama |
 |---|---|---|---|
-| GET | `/api/tablo/kirli` | user/admin | Onay bekleyen kirli kıyafetler (son 50) |
-| GET | `/api/tablo/temiz` | user/admin | Rafta bekleyen temiz kıyafetler (son 50) |
-| GET | `/api/tablo/teslim` | admin | Tüm teslim geçmişi (son 50) |
-| GET | `/api/tablo/kiyafet` | admin | RFID eşleştirme tablosu (server-side arama + sayfalama) |
+| GET | `/api/v1/tablo/kirli` | user/admin | Onay bekleyen kirli kıyafetler (son 50) |
+| GET | `/api/v1/tablo/temiz` | user/admin | Rafta bekleyen temiz kıyafetler (son 50) |
+| GET | `/api/v1/tablo/teslim` | admin | Tüm teslim geçmişi (son 50) |
+| GET | `/api/v1/tablo/kiyafet` | admin | RFID eşleştirme tablosu (server-side arama + sayfalama) |
 
 #### Denetim
 | Metod | Endpoint | Yetki | Açıklama |
 |---|---|---|---|
-| GET | `/api/audit-logs` | admin | Sistem audit logları (filtreli: `username`, `action`, `limit`) |
+| GET | `/api/v1/audit-logs` | admin | Sistem audit logları (filtreli: `username`, `action`, `limit`) |
 
 > Not: Auth gerektirmeyen `init_mock_data` benzeri uçlar **bilinçli olarak yoktur** (güvenlik). Test verisi `seed_1000.py` scripti ile yüklenir.
 
@@ -278,7 +278,23 @@ Raf ID formatı: {Harf}{Kat}{Bölme}  →  örn: A11, E73, H65
 | SSL/TLS | TLS 1.2/1.3, Nginx'te terminate edilir |
 | Audit Log | Tüm giriş, çıkış ve işlem olayları `audit_logs` tablosuna yazılır (PostgreSQL RULE ile append-only). Log aggregation hedefi: bkz. Bölüm 13. |
 | Proxy Desteği | `X-Forwarded-For` başlığından gerçek IP alınır |
+| Dosya Yükleme | Profil fotoğrafı yüklemede çok katmanlı içerik doğrulaması uygulanır (bkz. §7.1). |
 | Swagger/Docs | Üretimde kapalı: `DOCS_URL`/`REDOC_URL` env'leri set edilmedikçe `/docs` ve `/redoc` devre dışıdır (`docs_url=None`). |
+
+### 7.1 Dosya Yükleme Güvenliği (Profil Fotoğrafı)
+
+`POST /api/v1/users/me/photo` ucu tek dosya yükleme noktasıdır. Yalnızca MIME tipine güvenmek yetersizdir; polyglot saldırıları (PNG başlığı taşıyan kötücül içerik) bu denetimi atlatabilir. Bu nedenle yüklenen her dosya aşağıdaki katmanlı denetimden geçer (`app/modules/kullanici/service.py`):
+
+| # | Denetim | Kural | Başarısızlık davranışı |
+|---|---|---|---|
+| 1 | MIME tipi | `Content-Type == image/png` | Reddet → `BusinessLogicException` (HTTP 400) |
+| 2 | Boyut limiti | `len(contents) ≤ 2 MB` (boş dosya da reddedilir) | Reddet → `BusinessLogicException` (HTTP 400) |
+| 3 | **Magic byte (imza)** | İlk 8 byte = `89 50 4E 47 0D 0A 1A 0A` (PNG signature) | Reddet → `BusinessLogicException` (HTTP 400) |
+| 4 | Güvenli yazım | Dosya adı sunucuda üretilir (`avatar_{id}_{uuid}.png`); kullanıcı girdisi dosya yoluna karışmaz (path traversal yok) | — |
+
+**Tarama başarısız olduğunda politika:** İstek **reddedilir** (karantina/diske yazma yapılmaz) ve olay `PHOTO_UPLOAD_REJECTED` action koduyla audit log'a (`status="failure"`) yazılır. Başarılı yüklemeler `PHOTO_UPLOAD` koduyla loglanır. Reddedilen yüklemelerin tekrarı, §13'teki "kritik log" alerting kategorisi üzerinden yöneticiye sinyal verir.
+
+> **Not (gelecek sertleştirme):** Antivirüs taraması gerektiren genişletilmiş yükleme senaryolarında (ör. doküman eki) ClamAV/`clamd` sidecar entegrasyonu planlanmıştır; Faz 1'in tek küçük PNG yükleme yüzeyi için magic-byte + boyut + sunucu-üretimli ad yeterli kabul edilmiştir.
 
 ---
 
@@ -292,8 +308,8 @@ Raf ID formatı: {Harf}{Kat}{Bölme}  →  örn: A11, E73, H65
 | QR Okuma | html5-qrcode | Kamera ile RFID/QR okuma |
 | QR Üretme | QRious | Barkod önizleme modalında QR oluşturma |
 | PDF | jsPDF | Barkod PDF çıktısı |
-| State | `localStorage` | JWT token saklanır |
-| Auth Akışı | Token yoksa login modal gösterilir, tüm API istekleri `fetchWithAuth()` ile yapılır |
+| State | memory-only (`AppState`) | Access token **yalnızca bellekte** tutulur; `localStorage`'a yazılmaz. Refresh token httpOnly+Secure cookie'dedir (ADR 0001). |
+| Auth Akışı | Token yoksa login modal gösterilir; tüm API istekleri `fetchWithAuth()` ile yapılır. 401'de `/auth/refresh` üzerinden sessiz token yenileme (Silent Refresh) denenir. |
 
 ---
 
@@ -304,6 +320,10 @@ Raf ID formatı: {Harf}{Kat}{Bölme}  →  örn: A11, E73, H65
 | Değişken | Açıklama | Varsayılan |
 |---|---|---|
 | `DATABASE_URL` | SQLAlchemy bağlantı dizesi (zorunlu) | — |
+| `DB_POOL_SIZE` | Kalıcı bağlantı havuzu boyutu | `10` |
+| `DB_MAX_OVERFLOW` | Havuz dolduğunda açılabilecek ek bağlantı sayısı | `20` |
+| `DB_POOL_TIMEOUT` | Havuzdan bağlantı beklerken zaman aşımı (sn) | `30` |
+| `DB_POOL_RECYCLE` | Bağlantının geri dönüştürülme süresi (sn) | `1800` |
 | `PRIVATE_KEY_PATH` | RS256 private key (PEM) yolu | `certs/private_key.pem` |
 | `PUBLIC_KEY_PATH` | RS256 public key (PEM) yolu | `certs/public_key.pem` |
 | `ACCESS_TOKEN_EXPIRE_MINUTES` | Access token ömrü (dk) | `15` |
@@ -334,11 +354,23 @@ laundrostar/
 │       ├── cert.pem         # SSL sertifikası
 │       └── key.pem          # SSL özel anahtarı
 ├── app/
-│   ├── main.py              # FastAPI uygulama giriş noktası + tüm endpoint'ler
+│   ├── main.py              # FastAPI giriş noktası: app factory, middleware (CORS/CSRF/SecurityHeaders),
+│   │                        #   rate limiter ve router kayıtları. Endpoint TANIMLARI burada DEĞİL,
+│   │                        #   modules/*/router.py içindedir.
 │   ├── models.py            # SQLAlchemy ORM modelleri
 │   ├── schemas.py           # Pydantic istek/yanıt şemaları
-│   ├── database.py          # DB bağlantısı ve session yönetimi
-│   ├── security.py          # JWT, bcrypt, OAuth2 yardımcıları
+│   ├── database.py          # DB bağlantısı, connection pool ve session yönetimi
+│   ├── security.py          # JWT (RS256), bcrypt, OAuth2 ve TOTP/MFA yardımcıları
+│   ├── exceptions.py        # AppException hiyerarşisi (standart hata envelope)
+│   ├── logger.py            # structlog JSON loglama + kritik log helper'ı
+│   ├── utils.py             # IP alma, audit log yazma yardımcıları
+│   ├── modules/             # Modüler monolith — her modül: router.py / service.py / repository.py
+│   │   ├── auth/            # Login, MFA, refresh, logout
+│   │   ├── kullanici/       # Kullanıcı yönetimi + profil fotoğrafı yükleme
+│   │   ├── islem/           # İşlem akışı, istatistik, tablolar + shelf_service.py (raf atama)
+│   │   ├── calisan/         # Personel sorgulama
+│   │   ├── kiyafet/         # RFID demirbaş yönetimi
+│   │   └── audit/           # Denetim kaydı sorgulama
 │   └── static/
 │       ├── index.html       # Tek sayfa uygulama (SPA)
 │       ├── app.js           # Tüm frontend iş mantığı
@@ -347,7 +379,7 @@ laundrostar/
 │       └── avatars/         # Profil fotoğrafları
 └── docs/
     ├── topoloji.md          # Bu doküman
-    ├── adr/                 # Architecture Decision Records (0001–0007)
+    ├── adr/                 # Architecture Decision Records (0001–0008)
     └── ...
 ```
 
@@ -387,3 +419,21 @@ Bu yük profili tek `web` container + tek PostgreSQL örneği ile rahatça karş
 - **Uygulama logları:** `structlog` ile JSON formatında stdout'a yazılır (`app/logger.py`).
 - **Audit log:** Kritik işlemler `audit_logs` tablosuna (PostgreSQL `RULE` ile append-only) yazılır.
 - **Aggregation hedefi:** Container stdout JSON logları, deployment ortamında bir log shipper (Filebeat/Fluent Bit) aracılığıyla **OpenSearch/Elasticsearch (ELK)** kümesine gönderilir. Tercih edilen hedef OpenSearch'tür; bulut dağıtımında CloudWatch Logs alternatiftir. Bu, gözlemlenebilirlik ve uzun süreli denetim saklama için standart hattır.
+
+### Log Kategorileri ve Alerting
+
+Loglar üç anlamsal kategoriye ayrılır. Kategori, JSON log satırındaki `category` alanı ile işaretlenir ve aggregation katmanında alerting kuralları bu alana göre kurulur.
+
+| Kategori | Üretim noktası | İçerik | Alerting |
+|---|---|---|---|
+| `app` | `logger.info/warning(...)` | Normal istek/yanıt akışı, beklenen hatalar (4xx) | Yok (sadece arşiv/analiz) |
+| `audit` | `audit_logs` tablosu | Login/logout, kullanıcı/RFID CRUD, işlem onay/teslim, foto yükleme | Eşik bazlı (ör. tekrarlı `*_REJECTED`) |
+| **`critical`** | `logger.critical(...)` → `log_critical()` helper | DB erişilemezliği, beklenmeyen 5xx, güvenlik ihlali şüphesi (tekrarlı hesap kilidi, CSRF reddi seli, reddedilen dosya yükleme tekrarı) | **Anında** — OpenSearch Alerting / Prometheus Alertmanager üzerinden e-posta/Slack/webhook |
+
+**Kritik log tanımı:** Aşağıdaki olaylar `critical` kategorisinde üretilir ve operasyonel müdahale gerektirir:
+- Veritabanı bağlantı havuzunun tükenmesi veya `OperationalError` (DB çöküşü)
+- Aynı hesapta kısa sürede tekrarlayan kilitlenme (`ACCOUNT_LOCKED`) — brute-force şüphesi
+- `PHOTO_UPLOAD_REJECTED` olaylarının kısa pencerede tekrarı — polyglot/malware deneme şüphesi
+- Yakalanmayan istisna kaynaklı HTTP 5xx
+
+Alerting entegrasyonu deployment ortamında kurulur (OpenSearch Alerting monitor'ü veya Alertmanager kuralı); uygulama yalnızca `category="critical"` etiketli JSON satırını üretmekten sorumludur. Bu sayede alerting altyapısı kodtan bağımsız değiştirilebilir.

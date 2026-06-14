@@ -17,5 +17,7 @@ CSRF koruması için **Double Submit Cookie** (Çift Gönderim Cookie) yöntemin
 - **Olumlu:** Sunucuda herhangi bir state (durum) tutulmasına gerek kalmadı. Uygulama yatayda (horizontal) kolayca ölçeklenebilir. JWT token mimarisiyle tam uyumludur.
 - **Olumsuz:** Frontend'in her `POST/PUT/DELETE` isteğinde, header içerisine `X-CSRF-Token` değerini cookie'den okuyup manuel olarak eklemesi gerekir (`fetchWithAuth` wrapper'ı yazılmasını zorunlu kıldı).
 
-## AI Rolü
-"Faz 2 Vibecoding Standartları" uyarınca stateless güvenlik altyapısı kurma sorumluluğu AI tarafından üstlenilmiş ve middleware seviyesinde enforce edilmiştir.
+## AI Rolü ve İnsan Kararı
+**AI önerisi:** AI ajanı, CSRF koruması için üç seçeneği (Synchronizer Token, yalnızca SameSite, Double Submit Cookie) değerlendirip Double Submit Cookie'yi önerdi; gerekçe, mevcut stateless JWT mimarisiyle uyum ve sunucuda session tutma ihtiyacının olmamasıydı.
+
+**İnsan kararı:** Proje sahibi öneriyi kabul etti çünkü (1) Synchronizer Token Pattern, stateless JWT mimarisini bozar ve yatay ölçeklemeyi zorlaştırırdı; (2) yalnızca SameSite cookie'ye güvenmek eski tarayıcı/origin senaryolarında yetersizdi; (3) Double Submit'in getirdiği ek yük (frontend'in her mutasyon isteğinde `X-CSRF-Token` eklemesi) zaten yazılan `fetchWithAuth` wrapper'ı ile merkezileştirildiğinden kabul edilebilir bulundu. `auth/token`, `refresh`, `logout`, `mfa/verify` uçlarının muafiyeti de bilinçle onaylandı.

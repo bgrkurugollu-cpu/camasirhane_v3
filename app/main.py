@@ -14,6 +14,7 @@ from sqlalchemy import text
 from . import models, database
 from .utils import get_client_ip
 from .exceptions import AppException
+from .logger import log_critical
 from fastapi import Request
 from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
@@ -93,6 +94,20 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     return JSONResponse(
         status_code=422,
         content={"error": {"code": "VALIDATION_ERROR", "message": "Girdi doğrulama hatası", "details": jsonable_encoder(exc.errors())}}
+    )
+
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception):
+    # Yakalanmayan istisnalar → 'critical' kategorili log + alert (bkz. topoloji.md §13).
+    # İç hata detayı istemciye sızdırılmaz.
+    log_critical(
+        "unhandled_exception",
+        path=str(request.url.path), method=request.method,
+        error_type=type(exc).__name__, error=str(exc),
+    )
+    return JSONResponse(
+        status_code=500,
+        content={"error": {"code": "INTERNAL_ERROR", "message": "Beklenmeyen bir sunucu hatası oluştu."}}
     )
 
 _startup_time = time.time()

@@ -21,22 +21,56 @@ def update_user_me(db: Session, request: Request, data: schemas.UserProfileUpdat
     )
     return user
 
+# PNG dosya imzası (magic bytes) — RFC 2083. Polyglot/malware dosyaları MIME
+# tipini taklit edebildiği için içerik bu 8 byte ile doğrulanır.
+PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
+MAX_PHOTO_SIZE = 2 * 1024 * 1024  # 2 MB
+
+
+def _reject_photo(db: Session, request: Request, current_user: models.User, reason: str) -> None:
+    """Yükleme reddini audit log'a yazıp BusinessLogicException fırlatır.
+
+    Politika: tarama başarısız olduğunda dosya diske YAZILMAZ (karantina yok),
+    istek reddedilir ve olay PHOTO_UPLOAD_REJECTED olarak denetim kaydına geçer.
+    Tekrarlı redler topoloji.md §13 'critical' log kategorisi üzerinden alert tetikler.
+    """
+    write_audit_log(
+        db=db, action="PHOTO_UPLOAD_REJECTED", username=current_user.username,
+        detail=f"Profil fotoğrafı reddedildi: {reason}",
+        ip_address=get_client_ip(request), status="failure",
+    )
+    raise BusinessLogicException(reason)
+
+
 async def upload_profile_photo(db: Session, request: Request, contents: bytes, content_type: str, current_user: models.User):
+    # 1) MIME tipi
     if content_type != "image/png":
-        raise BusinessLogicException("Sadece .png formatında resim yükleyebilirsiniz.")
-    
-    if len(contents) > 2 * 1024 * 1024:
-        raise BusinessLogicException("Dosya boyutu çok büyük! Maksimum 2MB yükleyebilirsiniz.")
-    
+        _reject_photo(db, request, current_user, "Sadece .png formatında resim yükleyebilirsiniz.")
+
+    # 2) Boyut limiti (boş dosya da geçersiz)
+    if not contents:
+        _reject_photo(db, request, current_user, "Boş dosya yüklenemez.")
+    if len(contents) > MAX_PHOTO_SIZE:
+        _reject_photo(db, request, current_user, "Dosya boyutu çok büyük! Maksimum 2MB yükleyebilirsiniz.")
+
+    # 3) Magic byte (içerik imzası) — MIME tipine güvenmek yetmez
+    if not contents.startswith(PNG_SIGNATURE):
+        _reject_photo(db, request, current_user, "Dosya içeriği geçerli bir PNG değil.")
+
+    # 4) Güvenli yazım — dosya adı sunucuda üretilir (path traversal yok)
     os.makedirs("app/static/avatars", exist_ok=True)
     filename = f"avatar_{current_user.id}_{uuid.uuid4().hex[:8]}.png"
     filepath = f"app/static/avatars/{filename}"
-    
+
     with open(filepath, "wb") as f:
         f.write(contents)
-        
+
     current_user.profile_photo = f"/static/avatars/{filename}"
     user = repository.update_user(db, current_user)
+    write_audit_log(
+        db=db, action="PHOTO_UPLOAD", username=current_user.username,
+        detail="Profil fotoğrafı güncellendi", ip_address=get_client_ip(request), status="success",
+    )
     return user
 
 def get_all_users(db: Session, current_user: models.User):

@@ -4,6 +4,7 @@ from fastapi import Request, Response
 from ... import security
 from ...utils import write_audit_log, get_client_ip
 from ...exceptions import AuthException
+from ...logger import log_critical
 from . import repository
 
 def process_login(db: Session, request: Request, response: Response, username: str, password: str):
@@ -26,6 +27,11 @@ def process_login(db: Session, request: Request, response: Response, username: s
             user.failed_login_count += 1
             if user.failed_login_count >= 5:
                 user.locked_until = now_utc + timedelta(minutes=15)
+                # Brute-force şüphesi → 'critical' kategorili alert (topoloji.md §13)
+                log_critical(
+                    "account_locked", username=username, ip_hash=ip,
+                    failed_login_count=user.failed_login_count,
+                )
             repository.update_user(db, user)
             
         write_audit_log(

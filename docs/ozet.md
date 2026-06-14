@@ -14,6 +14,8 @@ Hedefler:
 - Raf doluluk/kapasite yönetimini anlık olarak sağlamak
 - Yöneticilere veriye dayalı karar destek paneli (Dashboard) sunmak
 
+> **Dağıtım modeli:** LaundroStar, birden fazla tesiste kullanılabilir; ancak her tesis **kendi izole on-premise kurulumunda** (ayrı veritabanı, ayrı container yığını) çalışır — merkezi/çok-kiracılı (multi-tenant) tek sistem **değildir**. Çoklu tesis = çoklu bağımsız kurulum. Bu modelin gerekçesi ve operasyonel yönetimi (fleet management) için bkz. **ADR 0008**.
+
 ---
 
 ## 2. Teknoloji Yığını (Tech Stack)
@@ -95,6 +97,8 @@ Kurulu Docker + PostgreSQL mimarisi kurumsal standartlarda çalışmaktadır:
 3. **RFID Donanım Entegrasyonu:** Gerçek RFID tünel okuyucuları API'ye doğrudan bağlanarak insan faktörü sürece dahil olmadan %100 otonom çalışma sağlanabilir.
 
 4. **ERP / İK Entegrasyonu:** Açık RESTful API mimarisi üzerinden SAP, Oracle gibi sistemlerle entegrasyon kurularak personel verisi iki yönlü senkronize edilebilir.
+
+5. **Fleet Management (Çoklu Tesis):** Tesis sayısı arttığında, her tesis izole kurulumunu korurken deployment/güvenlik patch'i/izleme merkezi bir IaC (Ansible) + log aggregation (OpenSearch) hattından yönetilir. Yönetim seviyesinde çoklu-tesis görünürlüğü için salt-okunur merkezi raporlama katmanı Faz 2'de taslaklanmıştır (bkz. ADR 0008). Bu, veri izolasyonunu bozmadan kurumsal ölçeklenmeyi sağlar.
 
 ---
 

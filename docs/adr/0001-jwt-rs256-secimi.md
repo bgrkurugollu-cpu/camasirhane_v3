@@ -17,5 +17,7 @@ JWT imzalama algoritması olarak asimetrik **RS256** (RSA Signature with SHA-256
 - **Olumlu:** Public key'in dış sistemlerle veya gelecekte eklenecek mikroservislerle güvenli bir şekilde paylaşılabilmesi sağlandı. Merkezi bir doğrulama servisi ihtiyacı ortadan kalktı.
 - **Olumsuz:** Sertifika/anahtar yönetimi karmaşıklığı eklendi. `.pem` dosyalarının Docker container'a güvenli bir şekilde mount edilmesi gereksinimi oluştu.
 
-## AI Rolü
-Bu karar, projenin "Faz 2 Vibecoding Standartları" kapsamında AI ajanı tarafından, güvenlik boyutunu (Boyut 3) maksimize etmek ve kurumsal standartlara uyum sağlamak amacıyla önerilmiş ve uygulanmıştır.
+## AI Rolü ve İnsan Kararı
+**AI önerisi:** AI ajanı, "Faz 2 Vibecoding Standartları" güvenlik boyutu (Boyut 3) kapsamında HS256 yerine RS256 geçişini önerdi; gerekçe olarak imzalama ve doğrulama anahtarlarının ayrılmasını ve public key'in gelecekteki servislerle paylaşılabilirliğini sundu.
+
+**İnsan kararı:** Proje sahibi öneriyi kabul etti çünkü (1) SECRET_KEY sızıntısında tüm sistemin tehlikeye girmesi riski, kapalı devre tesis kurulumunda dahi kabul edilemez bulundu; (2) `.pem` anahtar yönetimi ek yükü, kiosk ortamında tek seferlik kurulum maliyeti olarak değerlendirilip kabul edildi; (3) ES256'nın küçük anahtar avantajına rağmen `python-jose` ile RS256'nın olgunluğu/yaygınlığı tercih sebebi oldu. Karar, anahtar üretimi ve Docker mount akışı doğrulanarak onaylandı.

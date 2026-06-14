@@ -23,6 +23,17 @@ Nginx dışarıdan gelen tüm HTTP/HTTPS isteklerini karşılar ve `web` servisi
 ### `app/database.py`
 PostgreSQL bağlantısını `DATABASE_URL` ortam değişkeninden okur. `SessionLocal` ile her endpoint çağrısı için izole bir veritabanı oturumu açar; `finally` bloğuyla kapatır. `pool_pre_ping=True` sayesinde bağlantı kopuklarını otomatik algılar.
 
+**Connection pool:** Havuz parametreleri env'den okunur ve kod içinde sabit değildir (bkz. `topoloji.md §9`):
+
+| Env | Anlam | Varsayılan |
+|---|---|---|
+| `DB_POOL_SIZE` | Kalıcı bağlantı sayısı | `10` |
+| `DB_MAX_OVERFLOW` | Havuz dolunca açılabilecek ek bağlantı | `20` |
+| `DB_POOL_TIMEOUT` | Bağlantı bekleme zaman aşımı (sn) | `30` |
+| `DB_POOL_RECYCLE` | Bağlantı geri dönüşüm süresi (sn) | `1800` |
+
+Pool argümanları yalnızca gerçek havuzlu sürücülerde (PostgreSQL) uygulanır; `sqlite` (test fallback) bunları desteklemediği için atlanır. Havuz tükenmesi (`TimeoutError`/`OperationalError`) `critical` log kategorisinde raporlanır (`topoloji.md §13`).
+
 ### `app/exceptions.py`
 Projenin tüm hata (exception) yapısını yönetir. `AppException` isimli temel bir sınıf üzerinden `{"error": {"code": "...", "message": "..."}}` formatında standartlaştırılmış hatalar üretilir.
 
@@ -150,6 +161,7 @@ Gerçek format: `f"{harf}{kat}{kompartiman}"` — örn. `"A31"` (A rafı, 3. kat
 - **Rate Limiting:** `slowapi` ile IP başına istek sınırı (`/api/v1/auth/token`: 10/dk, `/api/v1/islem*`: 60/dk).
 - **Hesap Kilitleme:** 5 hatalı şifre denemesinde hesap 15 dakika boyunca kilitlenir.
 - **CORS:** `allow_origins` `CORS_ORIGINS` env'inden okunur; wildcard `*` kullanılmaz.
+- **Dosya Yükleme Güvenliği:** Tek yükleme noktası olan profil fotoğrafı (`POST /api/v1/users/me/photo`) çok katmanlı doğrulamadan geçer (`app/modules/kullanici/service.py`): (1) MIME tipi `image/png`, (2) boyut ≤ 2MB (boş dosya reddedilir), (3) **magic byte / PNG imzası** (`\x89PNG\r\n\x1a\n`) — yalnızca MIME tipine güvenmek polyglot saldırılarına açıktır, (4) dosya adı sunucuda üretilir (`avatar_{id}_{uuid}.png`) → path traversal engellenir. Denetimlerden herhangi biri başarısız olursa dosya **diske yazılmaz**, istek reddedilir ve olay `PHOTO_UPLOAD_REJECTED` koduyla audit log'a yazılır; başarılı yükleme `PHOTO_UPLOAD` ile loglanır. Tarama politikası ve gelecekteki ClamAV genişletmesi için bkz. `topoloji.md §7.1`.
 - **Nginx & Docker:** Uygulamanın doğrudan internet erişimi engellenir. Dockerfile non-root (`appuser`) profili ile çalıştırılmaktadır.
 
 ---
