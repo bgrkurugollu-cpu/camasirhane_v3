@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text
 from sqlalchemy.orm import relationship
 import datetime
 from .database import Base
@@ -92,3 +92,38 @@ class Teslim_Edilen(Base):
     sicil_numarasi = Column(String, index=True, nullable=True)
     zaman_damgasi = Column(DateTime(timezone=True), default=get_now)
     raf_id = Column(String, nullable=True, index=True)
+
+class EdgeDevice(Base):
+    """
+    Fabrika ortamındaki Edge Sunucu cihazlarını temsil eder (bkz. Edge Gateway
+    Network — docs/adr/0009). Cihaz kendini `enroll` ile tanıtır (public key gönderir),
+    admin tarafından `approve` edilene kadar `pending` durumda bekler. Yalnızca
+    `approved` cihaz veri (`ingest`) gönderebilir.
+    """
+    __tablename__ = "edge_devices"
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    device_uid = Column(String, unique=True, index=True)   # Edge'in ürettiği UUID
+    name = Column(String, nullable=True)                   # Kullanıcı dostu ad
+    location = Column(String, nullable=True)               # Fabrika içi konum
+    public_key = Column(Text, nullable=True)               # PEM (RS256) — cihaz JWT doğrulaması
+    status = Column(String, default="pending", index=True) # pending | approved | revoked
+    agent_version = Column(String, nullable=True)
+    hardware = Column(Text, nullable=True)                  # JSON metni (okuyucu/yazıcı listesi)
+    enrolled_at = Column(DateTime(timezone=True), default=get_now)
+    approved_at = Column(DateTime(timezone=True), nullable=True)
+    approved_by_user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    last_seen_at = Column(DateTime(timezone=True), nullable=True)
+
+class EdgeReadingReceipt(Base):
+    """
+    Edge'den gelen her okumanın `client_reading_id`'sini saklar; aynı okuma iki kez
+    gönderilirse (retry) idempotent davranılır ve tekrar yazım yapılmaz.
+    """
+    __tablename__ = "edge_reading_receipts"
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    client_reading_id = Column(String, unique=True, index=True)
+    device_id = Column(Integer, ForeignKey("edge_devices.id"), nullable=True, index=True)
+    rfid_tag = Column(String, nullable=True)
+    islem_id = Column(Integer, nullable=True)   # kirli_kiyafetler.islem_id
+    status = Column(String, default="accepted") # accepted | rejected
+    created_at = Column(DateTime(timezone=True), default=get_now)

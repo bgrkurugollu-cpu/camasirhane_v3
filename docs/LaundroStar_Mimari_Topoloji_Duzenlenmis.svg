@@ -1,0 +1,139 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1900" height="1250" viewBox="0 0 1900 1250">
+  <defs>
+    <marker id="arrow-green" markerWidth="14" markerHeight="14" refX="12" refY="7" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L14,7 L0,14 Z" fill="#15803d"/>
+    </marker>
+    <marker id="arrow-red" markerWidth="18" markerHeight="18" refX="16" refY="9" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L18,9 L0,18 Z" fill="#dc2626"/>
+    </marker>
+    <marker id="arrow-blue" markerWidth="14" markerHeight="14" refX="12" refY="7" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L14,7 L0,14 Z" fill="#2563eb"/>
+    </marker>
+    <style>
+      .title { font: 700 36px Arial, sans-serif; fill:#0f172a; }
+      .subtitle { font: 400 18px Arial, sans-serif; fill:#334155; }
+      .env-title { font: 700 25px Arial, sans-serif; fill:#0f172a; }
+      .env-sub { font: 400 14px Arial, sans-serif; fill:#475569; }
+      .box-title { font: 700 18px Arial, sans-serif; fill:#0f172a; }
+      .text { font: 400 14px Arial, sans-serif; fill:#0f172a; }
+      .small { font: 400 13px Arial, sans-serif; fill:#334155; }
+      .label { font: 700 13px Arial, sans-serif; fill:#334155; }
+      .redlabel { font: 700 15px Arial, sans-serif; fill:#b91c1c; }
+      .redsmall { font: 400 13px Arial, sans-serif; fill:#991b1b; }
+    </style>
+  </defs>
+
+  <rect x="0" y="0" width="1900" height="1150" fill="#ffffff"/>
+  <text x="950" y="52" text-anchor="middle" class="title">LaundroStar Mimari Topoloji</text>
+  <text x="950" y="84" text-anchor="middle" class="subtitle">Fabrika Edge ortamı → Turkcell Datacenter dedike ortam | Tek yönlü veri transferi</text>
+
+  <!-- Environment boxes -->
+  <rect x="60" y="130" width="750" height="830" rx="24" fill="#ecfdf5" stroke="#16a34a" stroke-width="4" stroke-dasharray="12 10"/>
+  <text x="435" y="178" text-anchor="middle" class="env-title">FABRİKA ORTAMI</text>
+  <text x="435" y="204" text-anchor="middle" class="env-sub">OT / Fabrika LAN — Datacenter'dan bağımsız güvenlik bölgesi</text>
+
+  <rect x="1060" y="130" width="780" height="830" rx="24" fill="#eff6ff" stroke="#2563eb" stroke-width="4" stroke-dasharray="12 10"/>
+  <text x="1450" y="178" text-anchor="middle" class="env-title">TURKCELL DATACENTER</text>
+  <text x="1450" y="204" text-anchor="middle" class="env-sub">Dedike uygulama ortamı — fabrika ortamından bağımsız güvenlik bölgesi</text>
+
+  <!-- Factory devices -->
+  <rect x="110" y="260" width="290" height="125" rx="16" fill="#dcfce7" stroke="#166534" stroke-width="2.5"/>
+  <text x="255" y="294" text-anchor="middle" class="box-title">RFID Cihazları</text>
+  <text x="138" y="326" class="text">• RFID okuyucu / tünel</text>
+  <text x="138" y="356" class="text">• Sepet / kıyafet okuma</text>
+
+  <rect x="110" y="560" width="290" height="125" rx="16" fill="#dcfce7" stroke="#166534" stroke-width="2.5"/>
+  <text x="255" y="594" text-anchor="middle" class="box-title">Yazıcılar</text>
+  <text x="138" y="626" class="text">• Etiket / barkod yazıcı</text>
+  <text x="138" y="656" class="text">• Lokal print trafiği</text>
+
+  <rect x="485" y="350" width="310" height="185" rx="18" fill="#bbf7d0" stroke="#166534" stroke-width="3"/>
+  <text x="640" y="388" text-anchor="middle" class="box-title">Edge Sunucu</text>
+  <text x="515" y="425" class="text">• RFID cihazlarıyla haberleşme</text>
+  <text x="515" y="454" class="text">• Yazıcılarla lokal haberleşme</text>
+  <text x="515" y="483" class="text">• Lokal tampon / spool</text>
+  <text x="515" y="512" class="text">• Outbound sync agent</text>
+
+  <rect x="525" y="735" width="270" height="130" rx="14" fill="#fef3c7" stroke="#d97706" stroke-width="3"/>
+  <text x="660" y="772" text-anchor="middle" class="box-title">Fabrika Firewall</text>
+  <text x="555" y="810" class="text">• Inbound kapalı</text>
+  <text x="555" y="840" class="text">• Yalnızca Edge outbound</text>
+
+  <!-- Factory local arrows -->
+  <line x1="400" y1="322" x2="484" y2="404" stroke="#15803d" stroke-width="4" marker-end="url(#arrow-green)"/>
+  <rect x="400" y="304" width="110" height="34" rx="8" fill="#ecfdf5" stroke="none"/>
+  <text x="455" y="318" text-anchor="middle" class="label">RFID okuma</text>
+  <text x="455" y="334" text-anchor="middle" class="label">olayları</text>
+
+  <line x1="485" y1="500" x2="400" y2="592" stroke="#15803d" stroke-width="4" marker-end="url(#arrow-green)"/>
+  <rect x="385" y="520" width="105" height="34" rx="8" fill="#ecfdf5" stroke="none"/>
+  <text x="438" y="535" text-anchor="middle" class="label">Lokal</text>
+  <text x="438" y="551" text-anchor="middle" class="label">yazdırma</text>
+
+  <line x1="660" y1="535" x2="660" y2="735" stroke="#d97706" stroke-width="4" marker-end="url(#arrow-red)"/>
+  <rect x="680" y="610" width="110" height="38" rx="8" fill="#ecfdf5" stroke="none"/>
+  <text x="735" y="626" text-anchor="middle" class="label">Outbound</text>
+  <text x="735" y="642" text-anchor="middle" class="label">veri çıkışı</text>
+
+  <!-- Transfer gap labels -->
+  <rect x="840" y="430" width="190" height="200" rx="14" fill="#ffffff" stroke="#fecaca" stroke-width="1.5"/>
+  <text x="935" y="462" text-anchor="middle" class="redlabel">TEK YÖNLÜ</text>
+  <text x="935" y="484" text-anchor="middle" class="redlabel">VERİ TRANSFERİ</text>
+  <text x="935" y="520" text-anchor="middle" class="small">Fabrika →</text>
+  <text x="935" y="540" text-anchor="middle" class="small">Turkcell DC</text>
+  <text x="935" y="578" text-anchor="middle" class="small">RFID olayları /</text>
+  <text x="935" y="598" text-anchor="middle" class="small">işlem kayıtları /</text>
+  <text x="935" y="618" text-anchor="middle" class="small">senkronizasyon</text>
+
+  <!-- DC components -->
+  <rect x="1095" y="735" width="310" height="130" rx="14" fill="#dbeafe" stroke="#2563eb" stroke-width="2.5"/>
+  <text x="1250" y="772" text-anchor="middle" class="box-title">DC Ingress / Nginx</text>
+  <text x="1128" y="810" class="text">• TLS termination</text>
+  <text x="1128" y="840" class="text">• Rate limit / güvenlik header</text>
+
+  <rect x="1475" y="320" width="300" height="185" rx="20" fill="#bfdbfe" stroke="#2563eb" stroke-width="3"/>
+  <text x="1625" y="358" text-anchor="middle" class="box-title">Uygulama Sunucusu</text>
+  <text x="1505" y="398" class="text">• FastAPI backend</text>
+  <text x="1505" y="428" class="text">• Web SPA statik içerik</text>
+  <text x="1505" y="458" class="text">• /api/v1 endpointleri</text>
+  <text x="1505" y="488" class="text">• Auth / audit / iş akışları</text>
+
+  <ellipse cx="1625" cy="700" rx="150" ry="45" fill="#bfdbfe" stroke="#2563eb" stroke-width="3"/>
+  <rect x="1475" y="700" width="300" height="150" fill="#dbeafe" stroke="#2563eb" stroke-width="3"/>
+  <ellipse cx="1625" cy="850" rx="150" ry="45" fill="#dbeafe" stroke="#2563eb" stroke-width="3"/>
+  <line x1="1475" y1="700" x2="1475" y2="850" stroke="#2563eb" stroke-width="3"/>
+  <line x1="1775" y1="700" x2="1775" y2="850" stroke="#2563eb" stroke-width="3"/>
+  <text x="1625" y="748" text-anchor="middle" class="box-title">DB Sunucusu</text>
+  <text x="1510" y="790" class="text">• PostgreSQL 16</text>
+  <text x="1510" y="815" class="text">• Ayrı sunucu / ayrı subnet</text>
+  <text x="1510" y="842" class="text">• Sadece App erişir</text>
+
+  <!-- Inter environment arrow -->
+  <line x1="795" y1="800" x2="1095" y2="800" stroke="#dc2626" stroke-width="6" marker-end="url(#arrow-red)"/>
+  <rect x="850" y="818" width="235" height="28" rx="8" fill="#ffffff" stroke="none"/>
+  <text x="967" y="837" text-anchor="middle" class="redsmall">HTTPS 443 veya VPN tüneli</text>
+
+  <!-- DC arrows -->
+  <path d="M1405 735 C1455 650, 1450 540, 1475 430" fill="none" stroke="#2563eb" stroke-width="4" marker-end="url(#arrow-blue)"/>
+  <rect x="1410" y="590" width="95" height="30" rx="8" fill="#eff6ff" stroke="none"/>
+  <text x="1458" y="610" text-anchor="middle" class="label">API trafiği</text>
+
+  <line x1="1625" y1="505" x2="1625" y2="655" stroke="#2563eb" stroke-width="4" marker-end="url(#arrow-blue)"/>
+  <rect x="1645" y="565" width="105" height="34" rx="8" fill="#eff6ff" stroke="none"/>
+  <text x="1698" y="580" text-anchor="middle" class="label">DC iç ağ</text>
+  <text x="1698" y="596" text-anchor="middle" class="label">/ SQL</text>
+
+  <!-- Critical rule -->
+  <rect x="470" y="985" width="960" height="65" rx="14" fill="#fef2f2" stroke="#ef4444" stroke-width="2"/>
+  <text x="950" y="1011" text-anchor="middle" class="redlabel">Kritik Trafik Kuralı</text>
+  <text x="950" y="1038" text-anchor="middle" class="redsmall">DC → Fabrika yönünde başlatılan bağlantı yoktur; DC, RFID cihazlarına veya yazıcılara doğrudan erişmez.</text>
+
+  <!-- Legend -->
+  <rect x="60" y="1090" width="1780" height="55" rx="10" fill="#f8fafc" stroke="#cbd5e1"/>
+  <line x1="100" y1="1118" x2="185" y2="1118" stroke="#dc2626" stroke-width="5" marker-end="url(#arrow-red)"/>
+  <text x="210" y="1124" class="small">Tek yönlü Fabrika → DC veri transferi</text>
+  <line x1="600" y1="1118" x2="685" y2="1118" stroke="#15803d" stroke-width="4" marker-end="url(#arrow-green)"/>
+  <text x="710" y="1124" class="small">Fabrika içi lokal cihaz trafiği</text>
+  <line x1="1110" y1="1118" x2="1195" y2="1118" stroke="#2563eb" stroke-width="4" marker-end="url(#arrow-blue)"/>
+  <text x="1220" y="1124" class="small">Datacenter içi uygulama / veritabanı trafiği</text>
+</svg>

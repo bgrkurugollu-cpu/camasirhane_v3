@@ -102,6 +102,10 @@ function handleNavigation(target) {
         pageTitle.innerText = "Audit Logları";
         document.getElementById('audit-logs').classList.add('active');
         loadAuditLogs();
+    } else if (target === 'edge-devices') {
+        pageTitle.innerText = "Edge Cihazlar";
+        document.getElementById('edge-devices').classList.add('active');
+        loadEdgeDevices();
     }
 
     // Auto-close sidebar on mobile after navigation
@@ -943,6 +947,8 @@ async function fetchUserInfo() {
                 document.getElementById('admin-menu-audit').classList.remove('hidden');
                 document.getElementById('menu-rfid-eslestirme')?.classList.remove('hidden');
                 document.getElementById('admin-menu-kiyafet')?.classList.remove('hidden');
+                document.getElementById('admin-edge-header')?.classList.remove('hidden');
+                document.getElementById('admin-menu-edge')?.classList.remove('hidden');
             } else {
                 document.getElementById('header-role').innerText = "PERSONEL";
                 document.getElementById('admin-menu-header').classList.add('hidden');
@@ -951,6 +957,8 @@ async function fetchUserInfo() {
                 document.getElementById('admin-menu-audit').classList.add('hidden');
                 document.getElementById('menu-rfid-eslestirme')?.classList.add('hidden');
                 document.getElementById('admin-menu-kiyafet')?.classList.add('hidden');
+                document.getElementById('admin-edge-header')?.classList.add('hidden');
+                document.getElementById('admin-menu-edge')?.classList.add('hidden');
             }
             
             // Setup Avatar if exists
@@ -1410,6 +1418,113 @@ function clearAuditFilters() {
     document.getElementById('audit-filter-user').value = '';
     document.getElementById('audit-filter-action').value = '';
     loadAuditLogs();
+}
+
+// ---------------------------------------------------------------------------
+// Edge Cihazlar (Gateway Network — onay/iptal)
+// ---------------------------------------------------------------------------
+const EDGE_STATUS_BADGE = {
+    pending: 'bg-yellow-100 text-yellow-700 border-yellow-200',
+    approved: 'bg-green-100 text-green-700 border-green-200',
+    revoked: 'bg-red-100 text-red-700 border-red-200',
+};
+const EDGE_STATUS_LABEL = { pending: 'BEKLEMEDE', approved: 'ONAYLI', revoked: 'İPTAL' };
+
+async function loadEdgeDevices() {
+    const tbody = document.getElementById('edge-devices-body');
+    if (!tbody) return;
+    tbody.textContent = '';
+    const trLoading = createEl('tr');
+    const tdLoading = createEl('td', 'text-center py-6', 'Yükleniyor...');
+    tdLoading.colSpan = 7;
+    trLoading.appendChild(tdLoading);
+    tbody.appendChild(trLoading);
+
+    try {
+        const res = await apiFetch('/api/v1/edge/devices');
+        if (!res.ok) {
+            tbody.textContent = '';
+            const tr = createEl('tr');
+            const td = createEl('td', 'text-center py-6 text-red-500', 'Cihazlar yüklenemedi.');
+            td.colSpan = 7; tr.appendChild(td); tbody.appendChild(tr);
+            return;
+        }
+        const body = await res.json();
+        const devices = body.data || [];
+        tbody.textContent = '';
+        if (devices.length === 0) {
+            const tr = createEl('tr');
+            const td = createEl('td', 'text-center py-6 text-gray-400', 'Henüz kayıtlı edge cihaz yok.');
+            td.colSpan = 7; tr.appendChild(td); tbody.appendChild(tr);
+            return;
+        }
+
+        devices.forEach(d => {
+            const tr = createEl('tr', 'border-b border-gray-100 hover:bg-gray-50 transition-colors');
+
+            const statusTd = createEl('td', 'py-3 px-4');
+            const sClass = EDGE_STATUS_BADGE[d.status] || 'bg-gray-100 text-gray-700 border-gray-200';
+            statusTd.appendChild(createEl('span', `${sClass} px-2 py-1 rounded text-xs font-bold border`, EDGE_STATUS_LABEL[d.status] || d.status));
+            tr.appendChild(statusTd);
+
+            tr.appendChild(createEl('td', 'py-3 px-4 font-medium text-gray-900', d.name || '-'));
+            tr.appendChild(createEl('td', 'py-3 px-4 text-sm text-gray-600', d.location || '-'));
+
+            const hw = Array.isArray(d.hardware)
+                ? d.hardware.map(h => `${h.model || h.type || '?'}`).join(', ')
+                : '-';
+            tr.appendChild(createEl('td', 'py-3 px-4 text-sm text-gray-600', hw || '-'));
+            tr.appendChild(createEl('td', 'py-3 px-4 text-xs text-gray-400 font-mono', d.device_uid));
+            tr.appendChild(createEl('td', 'py-3 px-4 text-xs text-gray-400', d.last_seen_at ? new Date(d.last_seen_at).toLocaleString('tr-TR') : '-'));
+
+            const actionTd = createEl('td', 'py-3 px-4 text-right');
+            if (d.status !== 'approved') {
+                const approveBtn = createEl('button', 'bg-green-600 hover:bg-green-700 text-white text-xs font-bold py-1.5 px-3 rounded transition-colors mr-2', 'Onayla');
+                approveBtn.onclick = () => approveEdgeDevice(d.id, d.name);
+                actionTd.appendChild(approveBtn);
+            }
+            if (d.status !== 'revoked') {
+                const revokeBtn = createEl('button', 'bg-gray-100 hover:bg-red-100 text-red-700 text-xs font-bold py-1.5 px-3 rounded border border-red-200 transition-colors', 'İptal');
+                revokeBtn.onclick = () => revokeEdgeDevice(d.id, d.name);
+                actionTd.appendChild(revokeBtn);
+            }
+            tr.appendChild(actionTd);
+            tbody.appendChild(tr);
+        });
+    } catch (err) {
+        tbody.textContent = '';
+        const tr = createEl('tr');
+        const td = createEl('td', 'text-center py-6 text-red-500', 'Sunucu bağlantı hatası.');
+        td.colSpan = 7; tr.appendChild(td); tbody.appendChild(tr);
+    }
+}
+
+async function approveEdgeDevice(id, name) {
+    try {
+        const res = await apiFetch(`/api/v1/edge/devices/${id}/approve`, { method: 'POST' });
+        if (res.ok) {
+            showToast(`Cihaz onaylandı: ${name || id}`);
+            loadEdgeDevices();
+        } else {
+            showToast('Onaylama başarısız.', 'error');
+        }
+    } catch (err) {
+        showToast('Sunucu bağlantı hatası.', 'error');
+    }
+}
+
+async function revokeEdgeDevice(id, name) {
+    try {
+        const res = await apiFetch(`/api/v1/edge/devices/${id}/revoke`, { method: 'POST' });
+        if (res.ok) {
+            showToast(`Cihaz iptal edildi: ${name || id}`);
+            loadEdgeDevices();
+        } else {
+            showToast('İptal başarısız.', 'error');
+        }
+    } catch (err) {
+        showToast('Sunucu bağlantı hatası.', 'error');
+    }
 }
 
 // ---------------------------------------------------------------------------

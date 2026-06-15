@@ -26,6 +26,7 @@ from .modules.islem.router import router as islem_router
 from .modules.calisan.router import router as calisan_router
 from .modules.kiyafet.router import router as kiyafet_router
 from .modules.audit.router import router as audit_router
+from .modules.edge.router import router as edge_router
 
 app = FastAPI(
     title="Çamaşırhane Otomasyon Sistemi API",
@@ -54,7 +55,14 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 class CSRFMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         if request.method in ["POST", "PUT", "PATCH", "DELETE"]:
-            if request.url.path not in ["/api/v1/auth/token", "/api/v1/auth/refresh", "/api/v1/auth/logout", "/api/v1/auth/mfa/verify"]:
+            # Edge gateway uçları makine-makinedir (cihaz JWT imzası + approval ile
+            # korunur); CSRF double-submit cookie uygulanmaz (bkz. docs/adr/0009).
+            _csrf_exempt = [
+                "/api/v1/auth/token", "/api/v1/auth/refresh", "/api/v1/auth/logout",
+                "/api/v1/auth/mfa/verify",
+                "/api/v1/edge/enroll", "/api/v1/edge/ingest",
+            ]
+            if request.url.path not in _csrf_exempt:
                 csrf_cookie = request.cookies.get("csrf_token")
                 csrf_header = request.headers.get("x-csrf-token")
                 if not csrf_cookie or not csrf_header or csrf_cookie != csrf_header:
@@ -179,3 +187,4 @@ app.include_router(islem_router, prefix="/api/v1")
 app.include_router(calisan_router, prefix="/api/v1")
 app.include_router(kiyafet_router, prefix="/api/v1")
 app.include_router(audit_router, prefix="/api/v1")
+app.include_router(edge_router, prefix="/api/v1")
