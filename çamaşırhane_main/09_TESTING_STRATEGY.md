@@ -95,8 +95,9 @@ def test_assign_shelf_returns_none_when_full():
 ## 5. Integration Test Kuralları
 
 - Endpoint testleri FastAPI `TestClient` ile yapılır.
-- Test veritabanı: SQLite in-memory; her test session'ında Alembic migration çalışır.
-- `conftest.py`'da `db` ve `client` fixture'ları tanımlıdır.
+- Test veritabanı: `TEST_DATABASE_URL` verilirse gerçek PostgreSQL; yoksa lokal hızlı çalışma için SQLite fallback. **CI'da PostgreSQL zorunludur** (servis container; bkz. §8). Böylece `DateTime(timezone=True)`, `audit_logs` RULE'leri gibi PG'ye özgü davranışlar gerçek motorda doğrulanır.
+- Her test **fonksiyonu** öncesi şema sıfırlanır (`drop_all`/`create_all`) ve deterministik seed yüklenir → tam izolasyon.
+- `conftest.py`'da `client`, `db_session`, `admin_token`, `user_token` fixture'ları tanımlıdır.
 
 ```python
 # tests/conftest.py
@@ -107,7 +108,7 @@ from sqlalchemy.orm import sessionmaker
 from database import Base, get_db
 from main import app
 
-TEST_DATABASE_URL = "sqlite:///./test.db"
+TEST_DATABASE_URL = os.getenv("TEST_DATABASE_URL", "sqlite:///./test.db")  # CI'da Postgres
 
 @pytest.fixture(scope="session")
 def test_db():
@@ -188,24 +189,45 @@ def test_kirli_giris_creates_audit_log(client, db_session):
 
 ## 8. CI Pipeline
 
+Uygulanan workflow: `.github/workflows/ci.yml`. İki job vardır:
+
+**`test` job** — testleri **gerçek PostgreSQL** servis container'ına karşı koşar:
+
 ```yaml
-# .github/workflows/pr-check.yml
-- name: Run tests
-  run: |
-    pytest --cov=app --cov-report=xml --cov-fail-under=80
-
-- name: Security scan
-  run: |
-    pip-audit --requirement requirements.txt --fail-on-severity high
-
-- name: Lint
-  run: |
-    ruff check app/
-
-- name: Type check
-  run: |
-    mypy app/ --ignore-missing-imports
+services:
+  postgres:
+    image: postgres:16-alpine
+    env: { POSTGRES_USER: camasirhane, POSTGRES_PASSWORD: testpass, POSTGRES_DB: camasirhane_test }
+    ports: [ "5432:5432" ]
+    options: >-
+      --health-cmd "pg_isready -U camasirhane -d camasirhane_test"
+      --health-interval 10s --health-timeout 5s --health-retries 10
+env:
+  DATABASE_URL: postgresql://camasirhane:testpass@localhost:5432/camasirhane_test
+  TEST_DATABASE_URL: postgresql://camasirhane:testpass@localhost:5432/camasirhane_test
+steps:
+  - uses: actions/checkout@v4
+  - uses: actions/setup-python@v5
+    with: { python-version: "3.12", cache: pip }
+  - run: pip install -r requirements.txt
+  - name: Generate RS256 test keys   # certs/ .gitignore'da; CI'da geçici üretilir
+    run: |
+      mkdir -p certs
+      openssl genpkey -algorithm RSA -out certs/private_key.pem -pkeyopt rsa_keygen_bits:2048
+      openssl rsa -in certs/private_key.pem -pubout -out certs/public_key.pem
+  - run: pytest   # pytest.ini → --cov-fail-under=80
 ```
+
+**`security-audit` job** — bağımlılık taraması (high/critical → fail):
+
+```yaml
+- run: pip install pip-audit
+- run: pip-audit -r requirements.txt
+```
+
+> Not: Testler hem PostgreSQL (CI) hem SQLite (lokal fallback) altında yeşildir.
+> `audit_logs` append-only RULE'ü yalnızca PostgreSQL'de oluşur (`app/database.py`
+> connect event listener); SQLite'ta atlanır.
 
 ---
 

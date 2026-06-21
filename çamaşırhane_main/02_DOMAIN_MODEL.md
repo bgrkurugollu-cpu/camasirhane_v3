@@ -27,7 +27,7 @@ Sisteme giriş yapan fiziksel kişi. İki rolden birine sahiptir: `admin` veya `
 **Sorumluluğu:**
 - Platform operasyonlarını yürüten veya yöneten kişiyi temsil eder.
 - Kimliğini `username` ile taşır; sistem genelinde unique.
-- `admin` rolü tüm ekranlara ve aksiyonlara erişir. `user` rolü yalnızca operasyonel işlemlere (kirli giriş, onay, teslim) erişir.
+- `admin` rolü tüm ekranlara ve aksiyonlara erişir. `user` rolü operasyonel işlemlere (onay, teslim) erişir; **kirli giriş** (tek RFID girişi ve sepet simülasyonu) yalnızca `admin` yetkisindedir.
 
 **Ana attribute'lar:**
 
@@ -41,7 +41,6 @@ Sisteme giriş yapan fiziksel kişi. İki rolden birine sahiptir: `admin` veya `
 | phone | VARCHAR(20) | Hayır | — |
 | title | VARCHAR(100) | Hayır | Unvan (örn. "Görevli") |
 | company | VARCHAR(100) | Hayır | Şirket adı |
-| profile_photo | VARCHAR(500) | Hayır | Sunucudaki statik dosya yolu |
 | is_active | BOOLEAN | Evet | Soft-disable bayrağı; default true |
 | failed_login_count | INTEGER | Evet | Lockout tetikleyicisi; default 0 |
 | locked_until | TIMESTAMPTZ | Hayır | Null ise kilit yok |
@@ -231,7 +230,7 @@ Sistemdeki tüm kritik işlemlerin kim tarafından, ne zaman, hangi IP'den yapı
      ▼
 [Zimmetli / Stokta]
      │
-     │ Kirli Giriş (user/admin)
+     │ Kirli Giriş (admin)
      ▼
 [KirliKiyafet — BEKLEMEDE]
      │
@@ -275,13 +274,12 @@ Tüm `AuditLog.action` değerleri bu listeden alınır. Kod dışında yeni aksi
 | `USER_UPDATE` | Admin | Kullanıcı güncellendi |
 | `USER_DELETE` | Admin | Kullanıcı silindi |
 | `PROFILE_UPDATE` | User | Kendi profil bilgisi güncellendi |
-| `PHOTO_UPLOAD` | User | Profil fotoğrafı yüklendi |
 | `RFID_REGISTER` | Admin | Yeni RFID eşleştirmesi |
 | `RFID_UPDATE` | Admin | RFID eşleştirmesi güncellendi |
 | `RFID_DELETE` | Admin | RFID eşleştirmesi silindi |
 | `CALISAN_CREATE` | Admin | Yeni personel kaydı |
-| `KIRLI_GIRIS` | User/Admin | Kıyafet kirli sepetine alındı |
-| `SEPET_SIMULASYON` | User/Admin | Sepet simülasyonu (toplu kirli giriş) |
+| `KIRLI_GIRIS` | Admin | Kıyafet kirli sepetine alındı |
+| `SEPET_SIMULASYON` | Admin | Sepet simülasyonu (toplu kirli giriş) |
 | `TEMIZ_ONAY` | User/Admin | Kıyafet temiz onaylandı ve rafa atandı |
 | `TESLIM` | User/Admin | Kıyafet personele teslim edildi |
 | `UNAUTHORIZED_ACCESS` | System | Yetkisiz erişim girişimi |

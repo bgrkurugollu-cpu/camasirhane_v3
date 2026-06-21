@@ -228,7 +228,6 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 |----------|-------|
 | `POST /api/v1/auth/login` | 10/dakika per IP |
 | `POST /api/v1/auth/refresh` | 30/dakika per IP |
-| `POST /api/v1/users/me/photo` | 10/dakika per user |
 | `POST /api/v1/islem/*` | 60/dakika per user |
 | Diğer (genel) | 200/dakika per IP |
 
@@ -267,30 +266,16 @@ class KirliGirisRequest(BaseModel):
 
 ---
 
-## 10. Profil Fotoğrafı Güvenliği
+## 10. Dosya Yükleme Yüzeyi
 
-```python
-async def upload_photo(file: UploadFile, current_user: User, db: Session):
-    # 1. Content-Type kontrolü
-    if file.content_type != "image/png":
-        raise AppException("USER_PHOTO_INVALID_FORMAT", 400)
+Sistemde **herhangi bir dosya yükleme yüzeyi yoktur.** Daha önce var olan profil
+fotoğrafı yükleme özelliği (`POST /api/v1/users/me/photo`) tamamen kaldırılmıştır;
+profil avatarı kullanıcının ad/soyad baş harfleriyle istemci tarafında üretilir.
 
-    # 2. Dosya boyutu kontrolü (max 2 MB)
-    contents = await file.read()
-    if len(contents) > 2 * 1024 * 1024:
-        raise AppException("USER_PHOTO_TOO_LARGE", 400)
-
-    # 3. Magic byte kontrolü (PNG imzası: \x89PNG)
-    if not contents.startswith(b'\x89PNG\r\n\x1a\n'):
-        raise AppException("USER_PHOTO_INVALID_FORMAT", 400)
-
-    # 4. Güvenli dosya adı (kullanıcı girdisi kullanılmaz)
-    filename = f"avatar_{current_user.id}_{secrets.token_hex(8)}.png"
-    filepath = os.path.join(settings.upload_dir, filename)
-
-    with open(filepath, "wb") as f:
-        f.write(contents)
-```
+> **Gelecekte yeni bir yükleme yüzeyi eklenirse** zorunlu kontroller: MIME/Content-Type
+> doğrulaması, boyut limiti, magic-byte (içerik imzası) doğrulaması ve sunucu tarafında
+> üretilen güvenli dosya adı (kullanıcı girdisi dosya adı olarak kullanılmaz). Reddedilen
+> yüklemeler audit log'a yazılmalıdır.
 
 ---
 
@@ -300,6 +285,27 @@ async def upload_photo(file: UploadFile, current_user: User, db: Session):
 - Her kayıt `write_audit_log()` helper'ı üzerinden yazılır.
 - IP adresi hash'lenerek saklanır; plaintext IP tabloya yazmaz.
 - Audit log API yanıtında `ip_hash` alanı döndürülmez.
+
+### 11.1 Loglama Kategorileri ve Alerting
+
+`app/logger.py` `structlog` ile JSON log üretir. İki ayrı izleme yüzeyi vardır:
+
+- **Uygulama logu** — normal akış/teşhis logları (`logger.info/warning/error`).
+- **Audit log** — iş/güvenlik olaylarının kalıcı, append-only kaydı (yukarıdaki §11).
+
+**Kritik kategori (`category="critical"`):** Operasyonel müdahale gerektiren olaylar
+(yakalanmamış 500 hataları, brute-force şüphesi, DB erişim kaybı vb.) `log_critical()`
+ile üretilir; çıktıya `category="critical"` etiketi eklenir.
+
+- **Aggregation:** Tüm loglar merkezi log toplayıcıya (OpenSearch/ELK) Fluent Bit ile
+  akar; tesis-başına izole kurulumda bu, fleet log-aggregation hattının parçasıdır
+  (bkz. [[adr/0008-deployment-modeli]]).
+- **Alerting:** Alarm kuralları `category="critical"` alanına göre kurulur (örn. Kritik
+  Log → çağrı/alarm). Alarm seviyeleri ve saklama süreleri için bkz.
+  [[Vibe Coding Standartları#Loglama]] ("Kritik Log").
+
+Bu bölüm, eski `topoloji.md §13 "Log Kategorileri ve Alerting"` içeriğinin güncel
+karşılığıdır.
 
 ---
 

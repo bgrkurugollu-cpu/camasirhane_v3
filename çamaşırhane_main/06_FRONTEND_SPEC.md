@@ -35,7 +35,6 @@ Frontend **Single Page Application (SPA)** olarak çalışır:
 static/
 ├── index.html              # Tek HTML dosyası; tüm sayfa yapısı burada
 ├── style.css               # Tailwind extend + custom CSS
-├── avatars/                # Profil fotoğrafları (backend tarafından yazılır)
 │
 └── js/
     ├── app.js              # Entry point: DOMContentLoaded, global init
@@ -52,7 +51,7 @@ static/
     │   ├── tablo.js        # setupTableView(), loadTablo()
     │   ├── kiyafet.js      # RFID eşleştirme CRUD
     │   ├── kullanici.js    # Kullanıcı yönetimi (admin)
-    │   ├── profil.js       # Profil güncelleme, fotoğraf yükleme
+    │   ├── profil.js       # Profil güncelleme (avatar = ad/soyad baş harfleri)
     │   └── audit.js        # Audit log görüntüleme
     │
     └── utils/
@@ -312,4 +311,4 @@ const ROUTE_MAP = {
 - `innerHTML` kullanımı Vibecoding güvenlik standartları gereği **tamamen yasaklanmış ve sıfırlanmıştır**. Sayfadaki tüm dinamik veriler ve tablolar DOM Helper (`document.createElement`) mimarisi kullanılarak ve `.textContent` atamalarıyla DOM'a entegre edilir.
 - Sayfa açılışında (`DOMContentLoaded`) Silent Token Refresh çalışarak oturumu yeniler.
 - CSRF token her mutating çağrıda (POST, PATCH, DELETE) header olarak gönderilir.
-- Profil fotoğrafı: yalnızca backend'den gelen URL kullanılır; kullanıcı girişi URL olarak render edilmez.
+- Profil avatarı: fotoğraf yükleme yoktur; avatar, kullanıcının ad/soyad baş harflerinden (`getInitials`) istemci tarafında üretilir ve `.textContent` ile basılır.

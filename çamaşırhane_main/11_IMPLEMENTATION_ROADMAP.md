@@ -205,7 +205,7 @@ Faz 10: Kimlik & Güvenlik Entegrasyonları (MFA operasyonel + opsiyonel SSO)
 - `slowapi` rate limiting tüm kritik endpointlere uygulandı (bkz. [[08_SECURITY_IMPLEMENTATION#7-rate-limiting]])
 - `structlog` ile JSON logging kurulumu
 - `pip-audit` CI adımına eklendi
-- Profil fotoğrafı: magic byte kontrolü eklendi
+- ~~Profil fotoğrafı: magic byte kontrolü eklendi~~ (Profil fotoğrafı özelliği sonradan tamamen kaldırıldı; sistemde dosya yükleme yüzeyi kalmadı. Avatar artık ad/soyad baş harfleriyle gösterilir.)
 
 #### Agent Kick-off Materyali
 - `07_SECURITY_IMPLEMENTATION` — header'lar, rate limit tablosu, logging kuralları

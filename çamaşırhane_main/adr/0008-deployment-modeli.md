@@ -4,7 +4,7 @@
 **Durum:** Kabul Edildi  
 
 ## Bağlam
-Mimari Gate raporu (2026-06-14), doküman paketi boyunca deployment modelinin tanımlanmamış olmasını **blocker** olarak işaretledi. Çelişki somuttu: `ozet.md` sistemi "işletmenin/tesislerin çamaşırhane süreçlerini dijitalleştirme" olarak çoğul tanımlarken, `topoloji.md §12` "Faz 1 hedef tesis" varsayımıyla yazılmıştı. Bu belirsizlik mevcut mimari kararların büyük bölümünün (Vanilla JS — ADR 0002, standalone auth — ADR 0003, hardcoded raf algoritması — ADR 0004) gerekçesini havada bırakıyordu; çünkü hepsi örtük olarak "tek tesis, kapalı devre, dahili araç" varsayımına dayanıyordu.
+Mimari Gate raporu (2026-06-14), doküman paketi boyunca deployment modelinin tanımlanmamış olmasını **blocker** olarak işaretledi. Çelişki somuttu: o tarihteki doküman paketi (`ozet.md`, `topoloji.md` — sonradan numaralı 00–11 paketiyle değiştirildi) sistemi bir yerde "işletmenin/tesislerin çamaşırhane süreçlerini dijitalleştirme" olarak çoğul tanımlarken, başka bir yerde "Faz 1 hedef tesis" varsayımıyla yazılmıştı. Bu belirsizlik mevcut mimari kararların büyük bölümünün (Vanilla JS — ADR 0002, standalone auth — ADR 0003, hardcoded raf algoritması — ADR 0004) gerekçesini havada bırakıyordu; çünkü hepsi örtük olarak "tek tesis, kapalı devre, dahili araç" varsayımına dayanıyordu.
 
 Temel soru: **Uygulama tek tesise mi kurulacak, birden fazla tesise mi?**
 
@@ -29,7 +29,7 @@ Tek uygulama tüm tesislere hizmet eder; tek SSL, tek patch. Operasyonel yük te
 - **Olumsuz / azaltım gerektiren:** "Her tesise elle kurulum" 5+ tesiste operasyonel olarak ölçeklenmez (versiyon drift, gecikmeli güvenlik patch'i, config drift, merkezi monitoring eksikliği). Bu risk, 3–5 tesis eşiğine gelmeden **fleet management altyapısı** kurularak azaltılır:
   - Tüm tesislere deployment tek komutla (Ansible/benzeri IaC); versiyon tutarlılığı pipeline tarafından zorlanır.
   - Security patch'ler tüm fleet'e eş zamanlı; doğrulama tek pipeline'dan.
-  - Tüm tesis logları merkezi OpenSearch'e Fluent Bit ile akar (tek monitoring panosu; `topoloji.md §13`).
+  - Tüm tesis logları merkezi OpenSearch'e Fluent Bit ile akar (tek monitoring panosu; bkz. [[08_SECURITY_IMPLEMENTATION#11.1 Loglama Kategorileri ve Alerting]]).
   - SSL sertifika yönetimi otomatize (internal CA veya Let's Encrypt + certbot).
 - Bu yatırım IaC + CI/CD'dir, uygulama kodu değil. Ekip bu altyapıyı kurmadan tesis sayısını artırırsa operasyonel yük altında kalır.
 

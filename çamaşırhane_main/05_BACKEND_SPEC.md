@@ -53,7 +53,7 @@ apps/api/
 │   │
 │   ├── users/
 │   │   ├── router.py                # /api/v1/users/*
-│   │   ├── service.py               # CRUD, photo upload iş mantığı
+│   │   ├── service.py               # CRUD iş mantığı
 │   │   ├── repository.py            # DB erişim katmanı
 │   │   ├── schemas.py               # UserResponse, UserCreate, UserProfileUpdate
 │   │   └── tests/
@@ -116,8 +116,7 @@ apps/api/
 ├── static/
 │   ├── index.html
 │   ├── app.js
-│   ├── style.css
-│   └── avatars/
+│   └── style.css
 │
 ├── tests/
 │   ├── conftest.py                  # pytest fixtures (test DB, test client)
@@ -158,17 +157,18 @@ Her modül aynı yapıyı takip eder:
 # modules/islem/router.py
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
-from common.dependencies import get_db, get_current_user
+from common.dependencies import get_db, require_admin
 from models.user import User
 from . import service, schemas
 
 router = APIRouter(prefix="/api/v1/islem", tags=["islem"])
 
+# Kirli giriş yalnızca admin yetkisiyle yapılır → require_admin
 @router.post("/kirli-giris", response_model=schemas.KirliGirisResponse, status_code=201)
 def kirli_giris(
     req: schemas.KirliGirisRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_admin)
 ):
     return service.kirli_giris(db=db, req=req, current_user=current_user)
 ```
@@ -359,7 +359,6 @@ class Settings(BaseSettings):
     admin_password_hash: str
     max_login_attempts: int = 5
     lockout_minutes: int = 15
-    upload_dir: str = "app/static/avatars"
     debug: bool = False
 
     class Config:

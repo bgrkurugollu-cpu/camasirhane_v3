@@ -27,10 +27,10 @@ MVP bir web uygulaması olarak teslim edilmiştir; mobil uygulama bu faz kapsam�
 ### v4 Kapsamı (in-scope)
 
 - **Kimlik doğrulama ve oturum yönetimi** — email + şifre login; JWT access token (15 dk, RS256) + refresh token (7 gün, rotation); httpOnly cookie; CSRF double-submit; hesap kilitleme (5 başarısız → 15 dk kilit); şifre sıfırlama.
-- **Kullanıcı yönetimi** — Admin tarafından kullanıcı CRUD; profil güncelleme (email, telefon, unvan, şirket); profil fotoğrafı yükleme (PNG, max 2 MB).
+- **Kullanıcı yönetimi** — Admin tarafından kullanıcı CRUD; profil güncelleme (email, telefon, unvan, şirket). Profil avatarı kullanıcının ad/soyad baş harfleriyle gösterilir (fotoğraf yükleme özelliği kaldırıldı).
 - **Çalışan (Calisan) yönetimi** — Sicil numarası bazlı personel kaydı; ad, soyad, cinsiyet attribute'ları.
 - **RFID eşleştirme** — RFID tag → sicil numarası eşleştirme CRUD; yeni personel kaydı ile eş zamanlı eşleştirme; çakışma kontrolü.
-- **Kirli kıyafet girişi** — RFID okutarak veya sepet simülasyonu (rastgele 10 kıyafet) ile kirli giriş; `kirli_kiyafetler` tablosuna kayıt.
+- **Kirli kıyafet girişi** — RFID okutarak veya sepet simülasyonu (rastgele 10 kıyafet) ile kirli giriş; `kirli_kiyafetler` tablosuna kayıt. **Yalnızca admin** yetkisiyle yapılır (test/operasyon amaçlı, admin'e özel "Test Ekranları" menüsünden açılır).
 - **Yıkama onayı** — Kirli bekleyenler listesinden tek tıkla onaylama; otomatik raf atama (cinsiyet bazlı); `temiz_kiyafetler` tablosuna aktarım.
 - **Teslim** — Temiz listesinden sicil doğrulayarak teslim; `teslim_edilenler` tablosuna kayıt.
 - **Raf yönetimi** — 8 raf (A-H) × 7 kat × 5 bölme = 280 göz; cinsiyete göre raf atama (K→E, E→A,B,C,D,F,G,H); 2D interaktif doluluk haritası; raf detay drill-down.
@@ -50,7 +50,7 @@ MVP bir web uygulaması olarak teslim edilmiştir; mobil uygulama bu faz kapsam�
 - **Email bildirim sistemi** — Yıkama tamamlandığında SMS/email bildirimi kapsam dışı.
 - **Rapor export (PDF/Excel)** — Dashboard verileri görsel olarak sunulur; export v5'te.
 - **Kıyafet versiyonlama** — Aynı RFID tag'in eşleşmesi değişirse tarihçe tutulmaz; v4'te yalnızca son durum.
-- **Doküman yönetimi** — Dosya/belge eki yok (profil fotoğrafı hariç).
+- **Doküman yönetimi** — Hiçbir dosya/belge eki veya yükleme yüzeyi yoktur.
 - **Multi-tenant** — Tek tesis, tek veritabanı; çok kiracılı yapı reddedildi.
 - **Çoklu dil** — v4 yalnızca Türkçe.
 - **Public API** — Dışarıya açık API yok; tüm endpointler kimlik doğrulama gerektirir.

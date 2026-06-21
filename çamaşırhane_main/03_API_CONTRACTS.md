@@ -165,8 +165,7 @@ Kullanıcı girişi. Rate limit: 10/dakika per IP.
       "role": "admin",
       "email": "string|null",
       "title": "string|null",
-      "company": "string|null",
-      "profile_photo": "string|null"
+      "company": "string|null"
     }
   }
 }
@@ -234,7 +233,6 @@ Mevcut kullanıcının profil bilgileri.
     "phone": "string|null",
     "title": "string|null",
     "company": "string|null",
-    "profile_photo": "string|null",
     "is_active": true
   }
 }
@@ -259,16 +257,9 @@ Yalnızca gönderilen alanlar güncellenir. `password` min 12 karakter.
 
 **Response 200:** Güncel user nesnesi.
 
----
-
-#### `POST /api/v1/users/me/photo`
-Profil fotoğrafı yükler. Rate limit: 10/dakika per user.
-
-**Request:** `multipart/form-data`, `file` alanı (PNG, max 2 MB).
-
-**Response 200:** Güncel user nesnesi (`profile_photo` alanı güncellenir).
-
-**Response 400:** `USER_PHOTO_INVALID_FORMAT` veya `USER_PHOTO_TOO_LARGE`
+> **Not:** Profil fotoğrafı yükleme özelliği kaldırılmıştır. Sistemde herhangi bir
+> dosya yükleme yüzeyi yoktur; profil avatarı kullanıcının ad/soyad baş harfleriyle
+> istemci tarafında üretilir.
 
 ---
 
@@ -415,7 +406,7 @@ Eşleştirmeyi siler.
 ### 3.5 İşlem Akışı
 
 #### `POST /api/v1/islem/sepet-simulasyon`
-Sepet simülasyonu: RFID listesinden henüz kirli bekleyenlerinde olmayan rastgele en fazla 10 kıyafeti `kirli_kiyafetler`'e ekler.
+Sepet simülasyonu: RFID listesinden henüz kirli bekleyenlerinde olmayan rastgele en fazla 10 kıyafeti `kirli_kiyafetler`'e ekler. **Yetki: yalnızca `admin`** (`require_admin`); aksi halde 403 döner.
 
 **Response 200:**
 ```json
@@ -441,7 +432,7 @@ Sepet simülasyonu: RFID listesinden henüz kirli bekleyenlerinde olmayan rastge
 ---
 
 #### `POST /api/v1/islem/kirli-giris`
-Tek RFID tag ile kirli giriş.
+Tek RFID tag ile kirli giriş. **Yetki: yalnızca `admin`** (`require_admin`); aksi halde 403 döner.
 
 **Request:**
 ```json
@@ -451,6 +442,8 @@ Tek RFID tag ile kirli giriş.
 ```
 
 **Response 201:** `{ "data": { "id": 1, "rfid_tag": "string", "sicil_numarasi": "string" } }`
+
+**Response 403:** `FORBIDDEN` — admin olmayan kullanıcı
 
 **Response 404:** `ISLEM_RFID_NOT_REGISTERED`
 

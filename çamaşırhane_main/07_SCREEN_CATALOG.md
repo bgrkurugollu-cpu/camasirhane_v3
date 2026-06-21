@@ -81,8 +81,8 @@ Kartlar sayfa açılışında ve 5 dakikada bir otomatik yenilenir.
 
 ## S-KIRLI-GIRIS — Kirli Kıyafet Girişi
 
-**Tip:** Aksiyon view.
-**Erişim:** user + admin.
+**Tip:** Aksiyon view (test/operasyon amaçlı).
+**Erişim:** yalnızca admin. Ekran, sidebar'da değil; sağ üstteki kullanıcı menüsünde admin'e özel **"Test Ekranları"** sekmesinden açılır. Personel ne arayüzde ne de API'de bu işleme erişebilir (backend `require_admin` ile 403 döner).
 
 **Bölüm 1: Sepet Simülasyonu**
 
@@ -320,11 +320,9 @@ Not: `ip_hash` alanı tabloda gösterilmez (KVKK).
 
 **Şifreyi Güncelle** → `PATCH /api/v1/users/me` (password alanı ile).
 
-**Bölüm 3: Profil Fotoğrafı**
+**Bölüm 3: Profil Avatarı**
 
-- Mevcut fotoğraf veya placeholder avatar gösterilir.
-- **Fotoğraf Seç** (file input, PNG only, max 2 MB) → `POST /api/v1/users/me/photo`
-- Yükleme sonrası sayfa fotoğrafı günceller.
+- Avatar, kullanıcının ad/soyad baş harfleriyle gösterilir (örn. "AY"). Fotoğraf yükleme özelliği kaldırılmıştır; ekranda dosya seçme/yükleme alanı yoktur.
 
 ---
 

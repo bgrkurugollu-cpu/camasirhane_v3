@@ -17,6 +17,18 @@
 - `pool_pre_ping=True` ile connection drop tespiti.
 - TLS zorunluluğu v5'te (AWS RDS geçişi ile).
 
+**Connection pool ayarları** (`app/database.py`, env'den okunur; yalnızca PostgreSQL
+gibi havuzlu sürücülerde uygulanır — SQLite'ta atlanır):
+
+| Env değişkeni | Default | Açıklama |
+|---|---|---|
+| `DB_POOL_SIZE` | 10 | Kalıcı havuz boyutu |
+| `DB_MAX_OVERFLOW` | 20 | Havuz üstü geçici bağlantı limiti |
+| `DB_POOL_TIMEOUT` | 30 | Bağlantı bekleme zaman aşımı (sn) |
+| `DB_POOL_RECYCLE` | 1800 | Bağlantı geri dönüşüm süresi (sn) |
+
+> Bu tablo, eski `topoloji.md §9` connection-pool içeriğinin güncel karşılığıdır.
+
 ---
 
 ## 2. Şemaya Genel Bakış
@@ -97,7 +109,6 @@ Platform kullanıcılarını tutar. Admin ve görevli (user) rolleri bu tabloda 
 | phone | VARCHAR(20) | Yes | — | — | — |
 | title | VARCHAR(100) | Yes | — | — | Unvan |
 | company | VARCHAR(100) | Yes | — | — | — |
-| profile_photo | VARCHAR(500) | Yes | — | — | Statik dosya yolu |
 | is_active | BOOLEAN | No | true | — | Soft-disable |
 | failed_login_count | INTEGER | No | 0 | CHECK >= 0 | Lockout tetikleyicisi |
 | locked_until | TIMESTAMPTZ | Yes | — | — | Null → kilit yok |

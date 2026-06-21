@@ -19,7 +19,7 @@ camasirhane_v4/
 │       ├── modules/
 │       ├── models/
 │       ├── alembic/
-│       ├── static/             # Frontend: HTML, JS, CSS, avatars
+│       ├── static/             # Frontend: HTML, JS, CSS
 │       ├── tests/
 │       ├── Dockerfile
 │       ├── requirements.txt
@@ -122,7 +122,6 @@ ADMIN_PASSWORD_HASH=$2b$12$...    # bcrypt ile önceden hash edilmiş
 # App
 TZ=Europe/Istanbul
 DEBUG=false
-UPLOAD_DIR=app/static/avatars
 
 # Auth
 MAX_LOGIN_ATTEMPTS=5
@@ -180,9 +179,21 @@ docker compose up --build
 ### 4.3 Test Çalıştırma
 
 ```bash
-cd apps/api
-pytest --cov=app --cov-report=term-missing
+# Hızlı lokal çalışma (SQLite fallback — env vermeden):
+DATABASE_URL=sqlite:///./test.db TEST_DATABASE_URL=sqlite:///./test.db \
+  pytest --cov=app --cov-report=term-missing
+
+# CI ile aynı: gerçek PostgreSQL'e karşı (PG'ye özgü davranış sadakati)
+docker run -d --name ls_pg -e POSTGRES_USER=camasirhane -e POSTGRES_PASSWORD=testpass \
+  -e POSTGRES_DB=camasirhane_test -p 5432:5432 postgres:16-alpine
+export DATABASE_URL=postgresql://camasirhane:testpass@localhost:5432/camasirhane_test
+export TEST_DATABASE_URL="$DATABASE_URL"
+pytest
 ```
+
+> CI (`.github/workflows/ci.yml`) testleri **her zaman** PostgreSQL servis container'ına
+> karşı koşar; SQLite yalnızca lokal hız içindir. Coverage eşiği `pytest.ini`
+> (`--cov-fail-under=80`) ile zorlanır.
 
 ---
 
