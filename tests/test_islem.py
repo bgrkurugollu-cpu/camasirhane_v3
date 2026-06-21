@@ -71,3 +71,22 @@ def test_rfid_mismatch(client: TestClient, admin_token: str):
         json={"islem_id": 99999, "sicil_numarasi": "1111"} # Geçersiz ID ve Sicil
     )
     assert res.status_code != 200 # NotFound veya BadRequest dönmeli
+
+def test_kirli_giris_admin_only(client: TestClient, user_token: str):
+    # Kirli girişi yalnızca admin yetkisiyle yapılabilir; personel 403 almalı.
+    res = client.post(
+        "/api/v1/islem",
+        headers={"Authorization": f"Bearer {user_token}", "x-csrf-token": "test"},
+        cookies={"csrf_token": "test"},
+        json={"islem_tipi": "kirli", "rfid_tag": "RFID-TEST"}
+    )
+    assert res.status_code == 403
+
+def test_rfid_oku_admin_only(client: TestClient, user_token: str):
+    # RFID Oku (kirli sepetine toplu ekleme) da admin'e özeldir.
+    res = client.post(
+        "/api/v1/islem/rfid-oku",
+        headers={"Authorization": f"Bearer {user_token}", "x-csrf-token": "test"},
+        cookies={"csrf_token": "test"},
+    )
+    assert res.status_code == 403

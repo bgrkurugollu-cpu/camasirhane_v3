@@ -90,7 +90,7 @@ function handleNavigation(target) {
         pageTitle.innerText = "Dashboard";
         document.getElementById('dashboard').classList.add('active');
         loadDashboard();
-    } else if (target === 'kirli-giris' || target === 'rfid-eslestirme') {
+    } else if (target === 'rfid-eslestirme') {
         setupActionView(target);
     } else if (target.startsWith('tablo-')) {
         setupTableView(target.replace('tablo-', ''));
@@ -949,6 +949,7 @@ async function fetchUserInfo() {
                 document.getElementById('admin-menu-kiyafet')?.classList.remove('hidden');
                 document.getElementById('admin-edge-header')?.classList.remove('hidden');
                 document.getElementById('admin-menu-edge')?.classList.remove('hidden');
+                document.getElementById('menu-test-screens')?.classList.remove('hidden');
             } else {
                 document.getElementById('header-role').innerText = "PERSONEL";
                 document.getElementById('admin-menu-header').classList.add('hidden');
@@ -959,18 +960,13 @@ async function fetchUserInfo() {
                 document.getElementById('admin-menu-kiyafet')?.classList.add('hidden');
                 document.getElementById('admin-edge-header')?.classList.add('hidden');
                 document.getElementById('admin-menu-edge')?.classList.add('hidden');
+                document.getElementById('menu-test-screens')?.classList.add('hidden');
             }
             
-            // Setup Avatar if exists
-            if (user.profile_photo) {
-                document.getElementById('header-avatar-img').src = user.profile_photo;
-                document.getElementById('header-avatar-img').classList.remove('hidden');
-                document.getElementById('header-avatar-icon').classList.add('hidden');
-            } else {
-                document.getElementById('header-avatar-img').classList.add('hidden');
-                document.getElementById('header-avatar-icon').classList.remove('hidden');
-            }
-            
+            // Avatar: kullanıcının ad/soyad baş harfleri
+            const headerInitials = document.getElementById('header-avatar-initials');
+            if (headerInitials) headerInitials.innerText = getInitials(user.username);
+
             loadDashboard();
         } else {
             showLoginModal();
@@ -1106,13 +1102,11 @@ async function showProfile() {
             document.getElementById('profile-email').value = data.email || '';
             document.getElementById('profile-phone').value = data.phone || '';
             document.getElementById('profile-password').value = ''; // Don't show password
-            
-            if (data.profile_photo) {
-                document.getElementById('profile-photo-preview').src = data.profile_photo;
-                document.getElementById('profile-photo-preview').classList.remove('hidden');
-                document.getElementById('profile-photo-icon').classList.add('hidden');
-            }
-            
+
+            // Avatar: ad/soyad baş harfleri
+            const profileInitials = document.getElementById('profile-avatar-initials');
+            if (profileInitials) profileInitials.innerText = getInitials(data.username);
+
             // Admin Panel Visibility
             if (currentUserRole === 'admin') {
                 document.getElementById('admin-user-management').classList.remove('hidden');
@@ -1126,55 +1120,32 @@ async function showProfile() {
     }
 }
 
-async function handlePhotoSelect(event) {
-    const file = event.target.files[0];
-    if (!file) return;
-    
-    if (file.type !== "image/png") {
-        showToast("Sadece PNG formatında fotoğraf yükleyebilirsiniz!", true);
-        return;
+// Test amaçlı "Kirli Girişi" ekranı — yalnızca admin tarafından kullanıcı
+// menüsünden açılır. Ana navigasyondan kaldırıldı (arka plan test fonksiyonu).
+function showTestScreen() {
+    if (currentUserRole !== 'admin') return;
+
+    // Dropdown'u kapat
+    document.getElementById('user-dropdown')?.classList.add('hidden');
+
+    // Sidebar aktif durumunu temizle (artık bu ekrana ait nav butonu yok)
+    document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+
+    // Tüm görünümleri kapat ve kirli giriş aksiyon görünümünü aç
+    document.querySelectorAll('.view-section').forEach(s => s.classList.remove('active'));
+    setupActionView('kirli-giris');
+}
+
+// Bir ad/kullanıcı adından ad-soyad baş harflerini üretir.
+// "Ahmet Yılmaz" -> "AY", "admin" -> "AD" gibi. Avatar gösteriminde kullanılır.
+function getInitials(name) {
+    if (!name) return '?';
+    const parts = name.trim().split(/[\s._-]+/).filter(Boolean);
+    if (parts.length === 0) return '?';
+    if (parts.length === 1) {
+        return parts[0].substring(0, 2).toUpperCase();
     }
-    
-    if (file.size > 2 * 1024 * 1024) {
-        showToast("Dosya boyutu 2MB'den küçük olmalıdır!", true);
-        return;
-    }
-    
-    const formData = new FormData();
-    formData.append("file", file);
-    
-    try {
-        const token = AppState.token;
-        const res = await apiFetch('/api/v1/users/me/photo', {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${token}`
-            },
-            body: formData
-        });
-        
-        if (res.ok) {
-            const data = await res.json();
-            showToast("Profil fotoğrafı başarıyla güncellendi!");
-            
-            if (data.profile_photo) {
-                const imgUrl = data.profile_photo + "?t=" + new Date().getTime(); // Prevent caching
-                document.getElementById('profile-photo-preview').src = imgUrl;
-                document.getElementById('profile-photo-preview').classList.remove('hidden');
-                document.getElementById('profile-photo-icon').classList.add('hidden');
-                
-                document.getElementById('header-avatar-img').src = imgUrl;
-                document.getElementById('header-avatar-img').classList.remove('hidden');
-                document.getElementById('header-avatar-icon').classList.add('hidden');
-            }
-        } else {
-            const errorData = await res.json();
-            showToast("Hata: " + errorData.detail, true);
-        }
-    } catch (err) {
-        console.error(err);
-        showToast("Fotoğraf yüklenirken bağlantı hatası oluştu", true);
-    }
+    return (parts[0][0] + parts[1][0]).toUpperCase();
 }
 
 async function handleProfileUpdate(e) {
@@ -1198,12 +1169,9 @@ async function handleProfileUpdate(e) {
         if (res.ok) {
             showToast("Profil başarıyla güncellendi!");
             const data = await res.json();
-            // Header'ı da yenileriz
-            if (data.profile_photo) {
-                 document.getElementById('header-avatar-img').src = data.profile_photo;
-                 document.getElementById('header-avatar-img').classList.remove('hidden');
-                 document.getElementById('header-avatar-icon').classList.add('hidden');
-            }
+            // Header avatar baş harflerini güncelle
+            const headerInitials = document.getElementById('header-avatar-initials');
+            if (headerInitials) headerInitials.innerText = getInitials(data.username);
             if(data.password) {
                  document.getElementById('profile-password').value = ''; 
             }

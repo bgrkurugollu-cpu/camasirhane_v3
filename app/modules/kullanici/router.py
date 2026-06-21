@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Request, UploadFile, File
+from fastapi import APIRouter, Depends, Request
 from sqlalchemy.orm import Session
 from typing import List
 from ... import models, schemas, database, security
@@ -18,16 +18,6 @@ def update_user_me(
     current_user: models.User = Depends(security.get_current_user)
 ):
     return service.update_user_me(db, request, data, current_user)
-
-@router.post("/me/photo", response_model=schemas.UserResponse)
-async def upload_profile_photo(
-    request: Request,
-    file: UploadFile = File(...),
-    db: Session = Depends(database.get_db),
-    current_user: models.User = Depends(security.get_current_user)
-):
-    contents = await file.read()
-    return await service.upload_profile_photo(db, request, contents, file.content_type, current_user)
 
 @router.get("", response_model=List[schemas.UserResponse])
 def get_all_users(db: Session = Depends(database.get_db), current_user: models.User = Depends(security.get_current_user)):

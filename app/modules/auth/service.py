@@ -27,7 +27,7 @@ def process_login(db: Session, request: Request, response: Response, username: s
             user.failed_login_count += 1
             if user.failed_login_count >= 5:
                 user.locked_until = now_utc + timedelta(minutes=15)
-                # Brute-force şüphesi → 'critical' kategorili alert (topoloji.md §13)
+                # Brute-force şüphesi → 'critical' kategorili alert (08_SECURITY_IMPLEMENTATION.md §11.1)
                 log_critical(
                     "account_locked", username=username, ip_hash=ip,
                     failed_login_count=user.failed_login_count,

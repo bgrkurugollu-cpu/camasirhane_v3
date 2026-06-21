@@ -11,7 +11,7 @@ router = APIRouter(prefix="", tags=["Islem"])
 def rfid_oku(
     request: Request,
     db: Session = Depends(database.get_db),
-    current_user: models.User = Depends(security.get_current_user)
+    current_user: models.User = Depends(security.require_admin)
 ):
     return service.process_rfid_oku(db, request, current_user)
 
@@ -20,7 +20,7 @@ def process_islem(
     request: Request,
     req: schemas.IslemRequest,
     db: Session = Depends(database.get_db),
-    current_user: models.User = Depends(security.get_current_user)
+    current_user: models.User = Depends(security.require_admin)
 ):
     return service.process_islem(db, request, req, current_user)
 

@@ -88,7 +88,6 @@ class UserResponse(BaseModel):
     phone: Optional[str] = None
     title: Optional[str] = None
     company: Optional[str] = None
-    profile_photo: Optional[str] = None
 
     class Config:
         from_attributes = True

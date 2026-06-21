@@ -106,7 +106,8 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 
 @app.exception_handler(Exception)
 async def unhandled_exception_handler(request: Request, exc: Exception):
-    # Yakalanmayan istisnalar → 'critical' kategorili log + alert (bkz. topoloji.md §13).
+    # Yakalanmayan istisnalar → 'critical' kategorili log + alert
+    # (bkz. 08_SECURITY_IMPLEMENTATION.md §11.1).
     # İç hata detayı istemciye sızdırılmaz.
     log_critical(
         "unhandled_exception",

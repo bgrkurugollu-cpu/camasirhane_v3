@@ -48,36 +48,26 @@ def process_rfid_oku(db: Session, request: Request, current_user: models.User):
     return {"durum": "ok", "eklenenler": eklenenler, "kalan_aday": kalan}
 
 def process_islem(db: Session, request: Request, req: schemas.IslemRequest, current_user: models.User):
+    # Kirli girişi yalnızca admin yetkisiyle yapılır (router'da require_admin ile
+    # zorlanır). Bu uç sadece kirli girişine hizmet eder.
+    if req.islem_tipi != 'kirli':
+        raise BusinessLogicException("Geçersiz işlem tipi")
+
     rfid_tag = req.rfid_tag
     ip = get_client_ip(request)
     now_utc = datetime.now(timezone.utc)
-    
-    if req.islem_tipi == 'kirli':
-        kiyafet = repository.get_kiyafet_by_rfid(db, rfid_tag)
-        if not kiyafet:
-            raise NotFoundException("Kıyafet", "Bu RFID tag sisteme kayıtlı değil.")
-        yeni_islem = models.Kirli_Kiyafet(rfid_tag=rfid_tag, sicil_numarasi=kiyafet.sicil_numarasi, zaman_damgasi=now_utc)
-        action_log = "KIRLI_GIRIS"
-    elif req.islem_tipi == 'temiz':
-        calisan = repository.get_calisan_by_sicil(db, req.sicil_numarasi)
-        cinsiyet = calisan.cinsiyet if calisan else None
-        raf_id = assign_shelf(db, cinsiyet=cinsiyet)
-        if raf_id is None:
-            raise BusinessLogicException("Tüm raflar dolu!")
-        yeni_islem = models.Temiz_Kiyafet(rfid_tag=rfid_tag, sicil_numarasi=req.sicil_numarasi, zaman_damgasi=now_utc, raf_id=raf_id)
-        action_log = "TEMIZ_GIRIS"
-    elif req.islem_tipi == 'teslim':
-        yeni_islem = models.Teslim_Edilen(rfid_tag=rfid_tag, sicil_numarasi=req.sicil_numarasi, zaman_damgasi=now_utc)
-        action_log = "TESLIM_GIRIS"
-    else:
-        raise BusinessLogicException("Geçersiz işlem tipi")
+
+    kiyafet = repository.get_kiyafet_by_rfid(db, rfid_tag)
+    if not kiyafet:
+        raise NotFoundException("Kıyafet", "Bu RFID tag sisteme kayıtlı değil.")
+    yeni_islem = models.Kirli_Kiyafet(rfid_tag=rfid_tag, sicil_numarasi=kiyafet.sicil_numarasi, zaman_damgasi=now_utc)
 
     repository.add_islem(db, yeni_islem)
     repository.commit_db(db)
     db.refresh(yeni_islem)
 
     write_audit_log(
-        db=db, action=action_log, username=current_user.username,
+        db=db, action="KIRLI_GIRIS", username=current_user.username,
         detail=f"RFID: {rfid_tag} | Sicil: {yeni_islem.sicil_numarasi}", ip_address=ip, status="success"
     )
     return {"message": "İşlem başarılı", "islem_id": yeni_islem.islem_id}
