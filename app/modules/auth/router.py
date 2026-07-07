@@ -6,6 +6,20 @@ from . import service
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
+@router.get("/bootstrap-status")
+def bootstrap_status(db: Session = Depends(database.get_db)):
+    """Sistemde hiç kullanıcı yoksa true döner; frontend ilk kurulum ekranını gösterir."""
+    return service.process_bootstrap_status(db)
+
+@router.post("/bootstrap", response_model=schemas.UserResponse)
+def bootstrap(
+    request: Request,
+    data: schemas.UserCreate,
+    db: Session = Depends(database.get_db),
+):
+    """Sistemde hiç kullanıcı yokken ilk kullanıcıyı oluşturur. Sonrasında devre dışı kalır."""
+    return service.process_bootstrap(db, request, data)
+
 @router.post("/token")
 def login_for_access_token(
     request: Request,

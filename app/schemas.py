@@ -118,6 +118,13 @@ class UserCreate(BaseModel):
             raise ValueError("Şifre en az bir özel karakter içermelidir.")
         return v
 
+    @field_validator('role')
+    @classmethod
+    def validate_role(cls, v):
+        if v not in ("admin", "user"):
+            raise ValueError("Rol 'admin' veya 'user' olmalıdır.")
+        return v
+
 class UserProfileUpdate(BaseModel):
     email: Optional[str] = None
     phone: Optional[str] = None

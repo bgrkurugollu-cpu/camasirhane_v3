@@ -1,11 +1,36 @@
 from sqlalchemy.orm import Session
 from datetime import datetime, timezone, timedelta
 from fastapi import Request, Response
-from ... import security
+from ... import security, models, schemas
 from ...utils import write_audit_log, get_client_ip
-from ...exceptions import AuthException
+from ...exceptions import AuthException, BusinessLogicException
 from ...logger import log_critical
 from . import repository
+
+
+def process_bootstrap_status(db: Session):
+    return {"needs_bootstrap": db.query(models.User).count() == 0}
+
+
+def process_bootstrap(db: Session, request: Request, data: schemas.UserCreate):
+    """Sistemde hiç kullanıcı yokken ilk kullanıcıyı (genelde admin) oluşturur.
+    Kimlik doğrulama gerektirmez; yalnızca kullanıcı tablosu boşken çalışır."""
+    if db.query(models.User).count() > 0:
+        raise BusinessLogicException("İlk kullanıcı zaten oluşturulmuş.")
+
+    hashed_pwd = security.get_password_hash(data.password)
+    user = models.User(
+        username=data.username, hashed_password=hashed_pwd, role=data.role,
+        title=data.title, company=data.company, email=data.email, phone=data.phone
+    )
+    user = repository.create_user(db, user)
+
+    write_audit_log(
+        db=db, action="BOOTSTRAP_USER_CREATE", username=user.username,
+        detail=f"İlk kullanıcı oluşturuldu (rol: {user.role})",
+        ip_address=get_client_ip(request), status="success"
+    )
+    return user
 
 def process_login(db: Session, request: Request, response: Response, username: str, password: str):
     ip = get_client_ip(request)

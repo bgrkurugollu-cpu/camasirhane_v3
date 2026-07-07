@@ -16,7 +16,6 @@ COPY requirements.txt .
 RUN pip install --no-cache /wheels/*
 
 COPY ./app /code/app
-COPY ./docs /code/docs
 COPY ./certs /code/certs
 
 # Static assets directories

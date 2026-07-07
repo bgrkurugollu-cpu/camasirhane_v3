@@ -62,7 +62,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     const token = AppState.token;
     
     if (!token) {
-        showLoginModal();
+        try {
+            const statusRes = await fetch('/api/v1/auth/bootstrap-status');
+            const statusData = await statusRes.json();
+            if (statusRes.ok && statusData.needs_bootstrap) {
+                document.getElementById('bootstrap-modal').classList.remove('hidden');
+            } else {
+                showLoginModal();
+            }
+        } catch (e) {
+            showLoginModal();
+        }
     } else {
         await fetchUserInfo();
     }
@@ -1054,6 +1064,44 @@ async function handleMfaChallenge(mfaToken, errObj) {
 
 function showLoginModal() {
     document.getElementById('login-modal').classList.remove('hidden');
+}
+
+async function handleBootstrap(e) {
+    e.preventDefault();
+    const btn = document.getElementById('bootstrap-btn');
+    const errObj = document.getElementById('bootstrap-error');
+    const username = document.getElementById('bootstrap-username').value;
+    const password = document.getElementById('bootstrap-password').value;
+    const role = document.getElementById('bootstrap-role').value;
+
+    btn.textContent = ''; const i=createEl('i','fas fa-spinner fa-spin mr-2'); btn.appendChild(i); btn.appendChild(document.createTextNode(' Bekleyin...'));
+    btn.disabled = true;
+    errObj.classList.add('hidden');
+
+    try {
+        const res = await fetch('/api/v1/auth/bootstrap', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, password, role })
+        });
+
+        if (res.ok) {
+            document.getElementById('bootstrap-password').value = '';
+            document.getElementById('bootstrap-modal').classList.add('hidden');
+            document.getElementById('login-username').value = username;
+            showLoginModal();
+        } else {
+            const data = await res.json().catch(() => ({}));
+            errObj.innerText = data.error?.message || "Kullanıcı oluşturulamadı.";
+            errObj.classList.remove('hidden');
+        }
+    } catch (err) {
+        errObj.innerText = "Sunucuya bağlanılamadı!";
+        errObj.classList.remove('hidden');
+    } finally {
+        btn.textContent = ''; const i=createEl('i','fas fa-user-plus mr-2'); btn.appendChild(i); btn.appendChild(document.createTextNode(' Kullanıcı Oluştur'));
+        btn.disabled = false;
+    }
 }
 
 function toggleUserMenu(e) {

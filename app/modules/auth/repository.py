@@ -9,3 +9,9 @@ def update_user(db: Session, user: models.User):
     db.commit()
     db.refresh(user)
     return user
+
+def create_user(db: Session, user: models.User) -> models.User:
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user

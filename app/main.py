@@ -59,7 +59,7 @@ class CSRFMiddleware(BaseHTTPMiddleware):
             # korunur); CSRF double-submit cookie uygulanmaz (bkz. docs/adr/0009).
             _csrf_exempt = [
                 "/api/v1/auth/token", "/api/v1/auth/refresh", "/api/v1/auth/logout",
-                "/api/v1/auth/mfa/verify",
+                "/api/v1/auth/mfa/verify", "/api/v1/auth/bootstrap",
                 "/api/v1/edge/enroll", "/api/v1/edge/ingest",
             ]
             if request.url.path not in _csrf_exempt:
