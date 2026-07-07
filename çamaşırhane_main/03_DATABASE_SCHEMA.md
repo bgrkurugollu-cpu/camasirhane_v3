@@ -127,6 +127,8 @@ Platform kullanıcılarını tutar. Admin ve görevli (user) rolleri bu tabloda 
 
 **Seed ihtiyacı: VAR.** `admin` kullanıcısı boot-time'da env'den (`ADMIN_USERNAME`, `ADMIN_PASSWORD_HASH`) seed edilir.
 
+> **Uygulama notu:** Uygulanan sürümde env tabanlı boot-time seed yerine **UI tabanlı ilk kurulum (bootstrap)** akışı vardır: sistemde hiç kullanıcı yokken arayüz "İlk Kurulum" ekranını gösterir ve ilk kullanıcı buradan oluşturulur (bkz. 03_API_CONTRACTS.md §3.1.2 ve 07_SCREEN_CATALOG.md S-SETUP).
+
 ---
 
 ### 5.2 `calisanlar`

@@ -124,6 +124,7 @@ POST /api/v1/auth/mfa/disable      → (auth) geçerli { code } ile kapat
 - Format: `secrets.token_urlsafe(32)` (Python)
 - Frontend `AppState.csrfToken` değişkeninde memory'de tutar.
 - Mutating endpoint'lerde `X-CSRF-Token` header zorunludur; backend cookie'deki CSRF değeri ile karşılaştırır (double-submit cookie pattern).
+- **CSRF muaf uçlar** (login öncesi çağrıldıkları veya makine-makine oldukları için): `/api/v1/auth/token`, `/api/v1/auth/refresh`, `/api/v1/auth/logout`, `/api/v1/auth/mfa/verify`, `/api/v1/auth/bootstrap` (ilk kurulum — bkz. 03_API_CONTRACTS.md §3.1.2), `/api/v1/edge/enroll`, `/api/v1/edge/ingest` (bkz. ADR 0009).
 
 ---
 

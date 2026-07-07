@@ -8,6 +8,7 @@
 
 | Ekran ID | Ekran Adı | Erişim | Navigasyon Hedefi |
 |----------|-----------|--------|-------------------|
+| S-SETUP | İlk Kurulum | Herkese açık (yalnızca sistemde kullanıcı yokken) | `bootstrap` modal |
 | S-LOGIN | Giriş | Herkese açık | `/login` modal |
 | S-DASHBOARD | Dashboard | user + admin | `dashboard` |
 | S-KIRLI-GIRIS | Kirli Kıyafet Girişi | user + admin | `kirli-giris` |
@@ -20,6 +21,32 @@
 | S-AUDIT | Audit Loglar | admin | `audit-logs` |
 | S-KULLANICI | Kullanıcı Yönetimi | admin | `kullanici-yonetimi` |
 | S-PROFIL | Profil / Ayarlar | user + admin | `profil` |
+
+---
+
+## S-SETUP — İlk Kurulum Ekranı
+
+**Tip:** Modal overlay (sayfa yüklenir; `GET /api/v1/auth/bootstrap-status` → `needs_bootstrap: true` ise login yerine bu modal açılır).
+**Erişim:** Herkese açık, ancak yalnızca sistemde hiç kullanıcı yokken görünür. İlk kullanıcı oluşturulduktan sonra kalıcı olarak devre dışıdır (bkz. 03_API_CONTRACTS.md §3.1.2).
+
+**Alanlar:**
+
+| Alan | Tip | Zorunlu | Açıklama |
+|------|-----|---------|----------|
+| Kullanıcı adı | Text input | Evet | `username` |
+| Şifre | Password input | Evet | Min 12 karakter; büyük/küçük harf, rakam, özel karakter |
+| Rol | Select | Evet | `admin` (varsayılan) veya `user` |
+
+**Butonlar:**
+- **Kullanıcı Oluştur** — `POST /api/v1/auth/bootstrap` çağrısı; başarıda modal kapanır, kullanıcı adı ön-doldurularak S-LOGIN gösterilir.
+
+**Hata durumları:**
+- `VALIDATION_ERROR` → şifre/rol politikası ihlali mesajı (form altında gösterilir).
+- `BUSINESS_LOGIC_ERROR` ("İlk kullanıcı zaten oluşturulmuş.") → tablo boş değilse.
+
+**Davranış:**
+- Uzun süreli kullanım için ilk kullanıcının **admin** rolüyle oluşturulması önerilir (sonraki kullanıcılar S-KULLANICI'dan admin tarafından eklenir).
+- Modal kapatılamaz; ilk kullanıcı oluşturulmadan sisteme geçilemez.
 
 ---
 

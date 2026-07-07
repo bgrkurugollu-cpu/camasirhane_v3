@@ -57,7 +57,7 @@ Hata yanıtları:
 
 ### 1.4 Auth Gereksinimleri
 
-`POST /api/v1/auth/login` ve `POST /api/v1/auth/refresh` dışındaki tüm endpoint'ler geçerli access token gerektirir.
+`POST /api/v1/auth/login`, `POST /api/v1/auth/refresh` ve ilk kurulum uçları (`GET /api/v1/auth/bootstrap-status`, `POST /api/v1/auth/bootstrap`) dışındaki tüm endpoint'ler geçerli access token gerektirir. Bootstrap uçları yalnızca sistemde hiç kullanıcı yokken anlamlıdır (bkz. §3.1.2).
 
 Access token: `Authorization: Bearer <token>` header'ı.
 
@@ -214,6 +214,30 @@ Login'in ikinci faktörü. CSRF muaf (login akışı).
 
 #### `POST /api/v1/auth/mfa/disable`  *(auth + CSRF)*
 `{ "code": "123456" }` → **200** `{ "message": "MFA devre dışı bırakıldı." }`
+
+---
+
+### 3.1.2 İlk Kurulum (Bootstrap)
+
+> **Uygulama notu:** 03_DATABASE_SCHEMA.md, ilk admin'in boot-time'da env'den (`ADMIN_USERNAME`/`ADMIN_PASSWORD_HASH`) seed edilmesini öngörür. Uygulanan sürümde bunun yerine, Edge'deki desene paralel bir **UI tabanlı ilk kurulum** akışı vardır: sistemde hiç kullanıcı yokken arayüz "İlk Kurulum" ekranını gösterir ve ilk kullanıcı buradan oluşturulur. Bu uçlar auth ve CSRF muafdır (login öncesi çağrılır) ve yalnızca kullanıcı tablosu boşken çalışır.
+
+#### `GET /api/v1/auth/bootstrap-status`
+Sistemde hiç kullanıcı olup olmadığını döner. Frontend açılışta bunu sorgular; `needs_bootstrap` true ise login yerine "İlk Kurulum" ekranı gösterilir.
+
+**Response 200:** `{ "needs_bootstrap": true|false }`
+
+#### `POST /api/v1/auth/bootstrap`
+İlk kullanıcıyı oluşturur. **Yalnızca** kullanıcı tablosu boşken çalışır; en az bir kullanıcı varsa kalıcı olarak devre dışıdır.
+
+**Request:**
+```json
+{ "username": "string", "password": "string", "role": "admin|user" }
+```
+Şifre `UserCreate` politikasına tabidir (min 12 karakter; büyük/küçük harf, rakam, özel karakter). `role` yalnızca `admin` veya `user` olabilir.
+
+**Response 200:** Oluşturulan kullanıcı (`UserResponse`: `id`, `username`, `role`, ...). Bootstrap yalnızca kullanıcıyı oluşturur; ardından normal login akışına yönlendirilir.
+
+**Response 400:** `BUSINESS_LOGIC_ERROR` — "İlk kullanıcı zaten oluşturulmuş." (tablo boş değil)
 
 ---
 
