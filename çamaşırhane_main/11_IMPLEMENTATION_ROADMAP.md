@@ -52,7 +52,7 @@ Faz 5: Güvenlik Tamamlama (security headers, CORS, pip-audit CI, logging)
 Faz 6: Frontend Güvenlik Düzeltmeleri (localStorage → memory, CSRF, innerHTML)
    │
    ▼
-Faz 7: Test Coverage Tamamlama (unit + integration; gate %75)
+Faz 7: Test Coverage Tamamlama (unit + integration; gate %80)
    │
    ▼
 Faz 8: Docker Hardening (multi-stage, non-root, .dockerignore)
@@ -247,13 +247,13 @@ Faz 10: Kimlik & Güvenlik Entegrasyonları (MFA operasyonel + opsiyonel SSO)
 - Auth modülü: %90+ line coverage (lockout, refresh, logout, CSRF testleri)
 - İşlem akışı: %85+ (kirli→temiz→teslim uçtan uca)
 - Shelf service: %95+ (cinsiyet kuralı, kapasite sınırı)
-- Genel %75 gate → CI pass
+- Genel %80 gate → CI pass (ölçülen %85)
 
 #### Agent Kick-off Materyali
 - `08_TESTING_STRATEGY` — test senaryoları, conftest fixture'ları
 
 #### Human Gate
-- [x] `pytest --cov-fail-under=75` yeşil
+- [x] `pytest --cov-fail-under=80` yeşil (ölçülen %85)
 - [x] `test_init_mock_data_not_exists` — 404 dönüyor
 - [x] `test_no_plaintext_ip_in_audit` — ip_hash SHA-256 uzunluğu
 - [x] `test_security_headers_present` — X-Frame-Options var

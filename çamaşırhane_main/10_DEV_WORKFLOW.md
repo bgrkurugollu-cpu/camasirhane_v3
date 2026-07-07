@@ -272,7 +272,7 @@ jobs:
       - run: pip install -r apps/api/requirements.txt
       - run: cd apps/api && ruff check app/
       - run: cd apps/api && mypy app/ --ignore-missing-imports
-      - run: cd apps/api && pytest --cov=app --cov-fail-under=75
+      - run: cd apps/api && pytest --cov=app --cov-fail-under=80
       - run: pip-audit --requirement apps/api/requirements.txt --fail-on-severity high
 ```
 

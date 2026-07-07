@@ -26,7 +26,7 @@ MVP bir web uygulaması olarak teslim edilmiştir; mobil uygulama bu faz kapsam�
 
 ### v4 Kapsamı (in-scope)
 
-- **Kimlik doğrulama ve oturum yönetimi** — email + şifre login; JWT access token (15 dk, RS256) + refresh token (7 gün, rotation); httpOnly cookie; CSRF double-submit; hesap kilitleme (5 başarısız → 15 dk kilit); şifre sıfırlama.
+- **Kimlik doğrulama ve oturum yönetimi** — email + şifre login; JWT access token (15 dk, RS256) + refresh token (7 gün, rotation); httpOnly cookie; CSRF double-submit; hesap kilitleme (5 başarısız → 15 dk kilit); şifre sıfırlama. Admin (ve isteğe bağlı tüm) hesaplar için TOTP tabanlı MFA ikinci faktörü uygulanmıştır (ADR 0007).
 - **Kullanıcı yönetimi** — Admin tarafından kullanıcı CRUD; profil güncelleme (email, telefon, unvan, şirket). Profil avatarı kullanıcının ad/soyad baş harfleriyle gösterilir (fotoğraf yükleme özelliği kaldırıldı).
 - **Çalışan (Calisan) yönetimi** — Sicil numarası bazlı personel kaydı; ad, soyad, cinsiyet attribute'ları.
 - **RFID eşleştirme** — RFID tag → sicil numarası eşleştirme CRUD; yeni personel kaydı ile eş zamanlı eşleştirme; çakışma kontrolü.
@@ -46,7 +46,7 @@ MVP bir web uygulaması olarak teslim edilmiştir; mobil uygulama bu faz kapsam�
 - **Mobil uygulama** — Teknoloji seçimi mobile genişlemeye izin verir; v4'te yalnızca web.
 - **Gerçek RFID donanım entegrasyonu** — v4'te RFID okuma simülasyon bazlı (rastgele seçim); gerçek tünel okuyucu entegrasyonu v5 planında.
 - **SAP / ERP / İK entegrasyonu** — Personel bilgileri manuel girilir; API tabanlı senkronizasyon kapsam dışı.
-- **MFA / 2FA** — Sonraki iterasyonda; admin hesaplar için TOTP planlanıyor.
+- **MFA operasyonel devreye alma / SSO** — TOTP MFA backend'i uygulanmıştır (ADR 0007, bkz. in-scope); kalan operasyonel adımlar (kayıt UI, `ADMIN_MFA_REQUIRED` zorunlu kılma, MFA reset ucu) ve opsiyonel Keycloak/SSO entegrasyonu Faz 10'a bırakılmıştır.
 - **Email bildirim sistemi** — Yıkama tamamlandığında SMS/email bildirimi kapsam dışı.
 - **Rapor export (PDF/Excel)** — Dashboard verileri görsel olarak sunulur; export v5'te.
 - **Kıyafet versiyonlama** — Aynı RFID tag'in eşleşmesi değişirse tarihçe tutulmaz; v4'te yalnızca son durum.
@@ -79,7 +79,7 @@ MVP bir web uygulaması olarak teslim edilmiştir; mobil uygulama bu faz kapsam�
 | Uptime | %99 | Docker health check + restart policy |
 | Auth modülü test coverage | Line %85+ | pytest-cov raporu |
 | Güvenlik modülü test coverage | Line %90+ | pytest-cov raporu |
-| Proje genel coverage | Line %70+ | pytest-cov raporu |
+| Proje genel coverage | Line %80+ (CI gate `--cov-fail-under=80`; ölçülen %85) | pytest-cov raporu |
 | Dependency güvenlik açığı (high/critical) | 0 (build fail) | `pip-audit` CI adımı |
 | Docker non-root user | Zorunlu | Dockerfile denetimi |
 | JWT localStorage kullanımı | 0 | Manuel kod denetimi |
