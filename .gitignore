@@ -12,3 +12,6 @@ refactor_frontend*.py
 .coverage
 .venv/
 certs/
+
+# Obsidian editör durumu (versiyonlanmamalı)
+.obsidian/

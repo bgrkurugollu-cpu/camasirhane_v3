@@ -8,14 +8,14 @@
 
 ### 1.1 v4 Stack
 
-| Bileşen | Versiyon / Seçim | Not |
-|---------|-----------------|-----|
-| Dil | Vanilla JavaScript (ES2022+) | ADR-001: React/Next.js migrasyonu v5'te |
-| HTML | HTML5 | Sunucu tarafından statik olarak servis edilir |
-| CSS Framework | Tailwind CSS (CDN) | Hızlı geliştirme için CDN yeterli; build pipeline eklenmez |
-| Grafik | Chart.js (CDN) | Dashboard grafikleri |
-| QR/Barcode | html5-qrcode (CDN) | RFID simülasyonu için tarayıcı kamerası |
-| Fetch | Native `fetch` API | Axios bağımlılığı eklenmiyor |
+| Bileşen       | Versiyon / Seçim             | Not                                                        |
+| ------------- | ---------------------------- | ---------------------------------------------------------- |
+| Dil           | Vanilla JavaScript (ES2022+) | ADR-001: React/Next.js migrasyonu v5'te                    |
+| HTML          | HTML5                        | Sunucu tarafından statik olarak servis edilir              |
+| CSS Framework | Tailwind CSS (CDN)           | Hızlı geliştirme için CDN yeterli; build pipeline eklenmez |
+| Grafik        | Chart.js (CDN)               | Dashboard grafikleri                                       |
+| QR/Barcode    | html5-qrcode (CDN)           | RFID simülasyonu için tarayıcı kamerası                    |
+| Fetch         | Native `fetch` API           | Axios bağımlılığı eklenmiyor                               |
 
 **ADR-001 Özeti:** React + TypeScript vibecoding standardının önerdiği yığındır. Ancak LaundroStar'ın ölçeği (< 20 eşzamanlı kullanıcı, < 15 ekran, dahili tesis uygulaması) ve mevcut Vanilla JS altyapısı göz önüne alındığında, v4'te modüler Vanilla JS yaklaşımı seçilmiştir. Öncelikler: güvenlik düzeltmeleri ve backend mimarisi. Next.js migrasyonu v5'te değerlendirilecektir.
 
